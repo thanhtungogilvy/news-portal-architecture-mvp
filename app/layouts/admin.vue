@@ -4,6 +4,12 @@ const user = useSupabaseUser()
 const { signOut } = useAuth()
 const { message, clear } = useAdminToast()
 
+const iconMap: Record<string, string> = {
+  'grid': 'IconGrid',
+  'file-text': 'IconFileText',
+  'tag': 'IconTag',
+}
+
 const navLinks = [
   { label: 'Dashboard', to: '/admin', icon: 'grid' },
   { label: 'News', to: '/admin/news', icon: 'file-text' },
@@ -44,6 +50,7 @@ async function handleLogout() {
               : 'text-white/60 hover:bg-white/5 hover:text-white/90',
           ]"
         >
+          <component :is="iconMap[link.icon]" class="h-4 w-4 shrink-0" aria-hidden="true" />
           {{ link.label }}
         </NuxtLink>
       </nav>

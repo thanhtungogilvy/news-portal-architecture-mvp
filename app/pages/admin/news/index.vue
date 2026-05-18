@@ -3,13 +3,28 @@ import type { NewsStatus } from '~/types/news'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 
-const statusFilter = ref<NewsStatus | undefined>(undefined)
-const categoryFilter = ref<string | undefined>(undefined)
+const route = useRoute()
+const router = useRouter()
+
+const NEWS_STATUSES: NewsStatus[] = ['draft', 'published', 'archived']
+
+function parseStatus(val: unknown): NewsStatus | undefined {
+  return NEWS_STATUSES.includes(val as NewsStatus) ? (val as NewsStatus) : undefined
+}
+
+const statusFilter = ref<NewsStatus | undefined>(parseStatus(route.query.status))
+const categoryFilter = ref<string | undefined>(typeof route.query.category === 'string' ? route.query.category : undefined)
+
+watch(statusFilter, (val) => {
+  router.replace({ query: { ...route.query, status: val ?? undefined, category: categoryFilter.value ?? undefined } })
+})
+watch(categoryFilter, (val) => {
+  router.replace({ query: { ...route.query, status: statusFilter.value ?? undefined, category: val ?? undefined } })
+})
 
 const { news, pending, remove } = useAdminNews(statusFilter, categoryFilter)
 const { categories, pending: categoriesPending } = useAdminCategories()
 const { show } = useAdminToast()
-const router = useRouter()
 
 const deleteTargetId = ref<string | null>(null)
 const deleteModalOpen = ref(false)
