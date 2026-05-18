@@ -1,11 +1,101 @@
 {
   "version": 1,
   "skills": {
+    "nuxt": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/nuxt/SKILL.md",
+      "computedHash": "1022ec1de47ea1ad86a2a95c296527a17abe71affe88092f8a4949fd6897da13"
+    },
+    "openspec-apply-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-apply-change/SKILL.md",
+      "computedHash": "c30999a1477d6a8377d7aaa02a82ad322206ffa0cca1ddf7d95618c4577ba10f"
+    },
+    "openspec-archive-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-archive-change/SKILL.md",
+      "computedHash": "dd8783f590c0488b2026bee9aae2adbc3cda1d7152ab04e9b9cf2ff3924fce50"
+    },
+    "openspec-bulk-archive-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-bulk-archive-change/SKILL.md",
+      "computedHash": "f1636af350b977d465a2361dec5104d487883e8ca6dbaefdf438f59e4b65051d"
+    },
+    "openspec-continue-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-continue-change/SKILL.md",
+      "computedHash": "383848c3fa732a8545b4e5aeb3bd8e83179410c48e47abd1db4afd8b7ddfb6cd"
+    },
+    "openspec-explore": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-explore/SKILL.md",
+      "computedHash": "4f534b22c2e04839f965186a9dd49129dcef318752260f5d67468d0a8d649826"
+    },
+    "openspec-ff-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-ff-change/SKILL.md",
+      "computedHash": "107161f1948f4b2dff754a614d52adb000506568e88559246fd0d5ef2ecf55fc"
+    },
+    "openspec-new-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-new-change/SKILL.md",
+      "computedHash": "5daea20179a3f93c7ef7ead465d77f3471e827b7640959dabccea6ddfb62f6b2"
+    },
+    "openspec-onboard": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-onboard/SKILL.md",
+      "computedHash": "6379a4e12dd61e80f7a9dcd707f9076d009e04461f330a20ec9ebee8481077ae"
+    },
+    "openspec-propose": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-propose/SKILL.md",
+      "computedHash": "a41d8fda28db18ff9afd548fdc4076c89e492460ac3b8ee0fa4cb33b7034a3e0"
+    },
+    "openspec-sync-specs": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-sync-specs/SKILL.md",
+      "computedHash": "eb8e97b97a50a2d7b72252b2c702b07b714b3f6101ae031dcfa086ba9f92eadb"
+    },
+    "openspec-verify-change": {
+      "source": "openspec/openspec",
+      "sourceType": "github",
+      "skillPath": "skills/openspec-verify-change/SKILL.md",
+      "computedHash": "f53dc5d31725d88c1895b5a950a65635276ba321458ae2711ec97c4e82531e0b"
+    },
+    "pinia": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pinia/SKILL.md",
+      "computedHash": "fba52570068a715fef7d306e582a5993bf08a838b55465d3c3c7bff8ba70f731"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase/SKILL.md",
       "computedHash": "45a3cdccc364a4bbd6cdf700fc069e9f24ebc0428098746cbfbf8b18a5e160d2"
+    },
+    "vue": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue/SKILL.md",
+      "computedHash": "eba0d129cc4c2cf9c08116d4b136cc6800322985e831a9e04da4e97f3dca137a"
+    },
+    "web-design-guidelines": {
+      "source": "vercel/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "f4647ca866a3accf763777f83e7682954f0187cd6bea7eea0399796652414e8f"
     }
   }
 }
