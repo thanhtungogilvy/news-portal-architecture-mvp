@@ -7,7 +7,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const isActive = computed(() => route.params.slug === props.category.slug)
+const isActive = computed(() => route.path === '/news' && route.query.category === props.category.slug)
 
 const pillClass = computed(() =>
   clsx(
@@ -20,7 +20,7 @@ const pillClass = computed(() =>
 </script>
 
 <template>
-  <NuxtLink :to="`/categories/${category.slug}`" :class="pillClass">
+  <NuxtLink :to="{ path: '/news', query: { category: category.slug } }" :class="pillClass">
     {{ category.name }}
   </NuxtLink>
 </template>

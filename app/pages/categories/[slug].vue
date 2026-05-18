@@ -49,24 +49,8 @@ const categoryNotFound = computed(
       </p>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="mt-8 flex items-center justify-center gap-2">
-        <UiButton
-          variant="secondary"
-          size="sm"
-          :disabled="page <= 1"
-          @click="page--"
-        >
-          Previous
-        </UiButton>
-        <span class="text-sm text-body">{{ page }} / {{ totalPages }}</span>
-        <UiButton
-          variant="secondary"
-          size="sm"
-          :disabled="page >= totalPages"
-          @click="page++"
-        >
-          Next
-        </UiButton>
+      <div v-if="totalPages > 1" class="mt-8">
+        <UiPagination :current-page="page" :total-pages="totalPages" @change="page = $event" />
       </div>
     </template>
   </div>

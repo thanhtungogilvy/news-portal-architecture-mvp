@@ -8,8 +8,8 @@
         <NuxtLink to="/" class="hover:text-title transition-colors" active-class="text-blue font-semibold">
           Home
         </NuxtLink>
-        <NuxtLink to="/categories" class="hover:text-title transition-colors" active-class="text-blue font-semibold">
-          Categories
+        <NuxtLink to="/news" class="hover:text-title transition-colors" active-class="text-blue font-semibold">
+          Tin tức
         </NuxtLink>
       </nav>
     </div>
