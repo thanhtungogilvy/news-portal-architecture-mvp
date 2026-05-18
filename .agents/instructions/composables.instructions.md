@@ -24,7 +24,7 @@ Server state và domain orchestration nằm ở composable, không phải Pinia 
 
 ## Nuxt Context & SSR Rules
 
-- Gọi Nuxt composables (`useRoute`, `useRuntimeConfig`, `useFetch`, `useSupabaseClient`, `useCookie`, `useState`) bên trong function composable, không gọi ở module top-level.
+- Gọi Nuxt composables (`useRoute`, `useRuntimeConfig`, `useFetch`, `useSupabaseClient`, `useSupabaseUser`, `useCookie`, `useState`) bên trong function composable, không gọi ở module top-level.
 - Không tạo module-level `ref`, `reactive`, hoặc cache mutable cho dữ liệu request/user; SSR có thể share state giữa requests.
 - State cần sống qua SSR/hydration dùng `useState` với key rõ ràng, hoặc để ở Pinia nếu đó là client/app state thật sự.
 - Browser API (`window`, `document`, `localStorage`) chỉ dùng sau `onMounted`, trong `import.meta.client`, hoặc trong component/composable client-only.
@@ -135,10 +135,17 @@ const { buildings, total, status, error, refresh } = useBuildingList()
 ## ✗ Cách không được dùng
 
 ```ts
-// ✗ Đừng gọi Supabase trực tiếp trong composable
+// ✗ Đừng gọi Supabase business data trực tiếp trong composable
 const supabase = useSupabaseClient()
 const { data } = await supabase.from('buildings').select('*')
 // → Phải đi qua server/api/
+
+// ✓ Exception: auth composable được dùng Supabase Auth client
+export function useAuth() {
+  const supabase = useSupabaseClient()
+  const user = useSupabaseUser()
+  return { user, signOut: () => supabase.auth.signOut() }
+}
 
 // ✗ Đừng làm 1 composable to ôm tất cả
 export function useBuildings() {

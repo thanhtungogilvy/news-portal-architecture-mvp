@@ -9,10 +9,14 @@ Pinia **chỉ** dùng cho state thật sự global — cần ở nhiều nơi kh
 ## Nuxt/Pinia Rules
 
 - Store files nằm dưới `app/stores/`; `@pinia/nuxt` auto-import stores trong Nuxt app.
+- `defineStore`, `storeToRefs`, `acceptHMRUpdate`, và store composables được `@pinia/nuxt` auto-import; explicit import vẫn được nếu giúp code rõ hơn.
 - Dùng setup-store style (`defineStore('name', () => { ... })`) để đồng nhất với Vue Composition API.
 - Không tạo state mutable ở module top-level ngoài `defineStore`; SSR có thể share state giữa requests.
 - Khi cần hydrate/init store một lần ở page/layout, dùng `callOnce` thay vì gọi action tự do trong nhiều component.
+- Dùng store trong component, composable, route middleware, plugin, hoặc store action; không gọi `useStore()` ở module top-level.
+- Trong async action có dùng store khác, gọi mọi `useOtherStore()` trước `await` để giữ đúng SSR context.
 - Không thêm dependency mới cho store helper nếu platform API đủ dùng.
+- Thêm HMR snippet cho mỗi store trong dev.
 
 ## Phân loại state
 
@@ -36,7 +40,6 @@ Pinia **chỉ** dùng cho state thật sự global — cần ở nhiều nơi kh
 **Auth store — session, user, role:**
 ```ts
 // app/stores/auth.ts
-import { defineStore } from 'pinia'
 import type { AuthUser } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -56,6 +59,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   return { user, isAuthenticated, role, isAdmin, setUser, clearSession }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot))
+}
 ```
 
 **App store — UI state, sidebar:**
@@ -75,6 +82,10 @@ export const useAppStore = defineStore('app', () => {
 
   return { sidebarOpen, activeNavItem, toggleSidebar, setActiveNav }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useAppStore, import.meta.hot))
+}
 ```
 
 **Notifications store — toast queue:**
@@ -100,6 +111,10 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
   return { toasts, addToast, removeToast }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useNotificationsStore, import.meta.hot))
+}
 ```
 
 **Dùng store trong component:**
@@ -111,7 +126,82 @@ const appStore = useAppStore()
 // ✓ Dùng storeToRefs để reactive destructure
 const { user, isAdmin } = storeToRefs(authStore)
 const { sidebarOpen } = storeToRefs(appStore)
+
+// ✓ Actions destructure trực tiếp được vì đã bound vào store
+const { clearSession } = authStore
 </script>
+```
+
+**Init store một lần trong page/layout:**
+```vue
+<script setup lang="ts">
+const authStore = useAuthStore()
+
+await callOnce('auth:init', () => authStore.loadSession())
+</script>
+```
+
+**Store dùng store khác — gọi trước await:**
+```ts
+// app/stores/auth.ts
+export const useAuthStore = defineStore('auth', () => {
+  async function signOut() {
+    const notifications = useNotificationsStore()
+
+    await $fetch('/api/auth/logout', { method: 'POST' })
+    notifications.addToast({ type: 'success', message: 'Đã đăng xuất' })
+  }
+
+  return { signOut }
+})
+```
+
+**Setup store cần reset thì tự implement `$reset`:**
+```ts
+export const useAppStore = defineStore('app', () => {
+  const sidebarOpen = ref(true)
+  const activeNavItem = ref<string | null>(null)
+
+  function $reset() {
+    sidebarOpen.value = true
+    activeNavItem.value = null
+  }
+
+  return { sidebarOpen, activeNavItem, $reset }
+})
+```
+
+**Batch mutation bằng `$patch` khi update nhiều field:**
+```ts
+const appStore = useAppStore()
+
+appStore.$patch({
+  sidebarOpen: false,
+  activeNavItem: 'settings',
+})
+```
+
+**Route middleware — gọi store bên trong function:**
+```ts
+// app/middleware/auth.ts
+export default defineNuxtRouteMiddleware((to) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return navigateTo('/login')
+  }
+})
+```
+
+**Subscribe chỉ cho cross-cutting concern thật sự:**
+```ts
+const unsubscribe = notificationsStore.$onAction(({ name, onError }) => {
+  onError((error) => {
+    console.error(`Notification action failed: ${name}`, error)
+  })
+})
+
+unsubscribe()
 ```
 
 ## ✗ Cách không được dùng
@@ -148,6 +238,51 @@ export const useBuildingsStore = defineStore('buildings', () => {
 const { user } = useAuthStore()  // ← mất reactive
 // → const { user } = storeToRefs(useAuthStore())
 
+// ✓ Action thì destructure trực tiếp được
+const { clearSession } = useAuthStore()
+
 // ✗ Đừng gọi action trong store để fetch server data rồi cache trong state
 // Server state cần freshness → dùng useFetch với cache control, không Pinia
+
+// ✗ Đừng gọi store ở module top-level
+const authStore = useAuthStore()
+export function requireAdmin() {
+  return authStore.isAdmin
+}
+
+// ✗ Đừng tạo circular dependency đọc state trong setup của 2 store
+export const useAStore = defineStore('a', () => {
+  const b = useBStore()
+  const name = computed(() => b.name) // nếu B cũng đọc A trong setup sẽ loop
+  return { name }
+})
+
+// ✗ Đừng quên return state trong setup store
+export const useBadStore = defineStore('bad', () => {
+  const count = ref(0)
+  return {} // Pinia không track count
+})
+```
+
+## Testing
+
+- Unit test store: tạo fresh Pinia mỗi test bằng `setActivePinia(createPinia())`.
+- Component test có store: dùng `@pinia/testing` nếu package đã được thêm.
+- Không thêm `@pinia/testing` chỉ để viết instruction; thêm dependency khi có test thật cần mock store.
+
+```ts
+import { createPinia, setActivePinia } from 'pinia'
+
+describe('useAppStore', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('resets app state', () => {
+    const store = useAppStore()
+    store.sidebarOpen = false
+    store.$reset()
+    expect(store.sidebarOpen).toBe(true)
+  })
+})
 ```

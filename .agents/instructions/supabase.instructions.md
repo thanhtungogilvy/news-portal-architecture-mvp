@@ -6,6 +6,12 @@ applyTo: "app/**/*.ts, app/**/*.vue, server/**/*.ts"
 
 Client-side Supabase **chỉ dùng cho auth**. Business data luôn đi qua `server/api/`.
 
+## Before Working
+
+- Supabase thay đổi nhanh: trước task Supabase có schema/auth/RLS/storage/key change, check `https://supabase.com/changelog.md` và docs liên quan.
+- Với repo này dùng `@nuxtjs/supabase`; nếu nghi ngờ env/config, kiểm tra `node_modules/@nuxtjs/supabase/dist/module.mjs` hoặc docs module hiện tại.
+- Sau khi sửa schema/RLS/query, phải verify bằng query/test cụ thể. Không coi patch SQL là xong nếu chưa có bước verify.
+
 ## Rule cứng
 
 ```
@@ -23,10 +29,16 @@ Server (server/api, server/services, server/repositories)
 
 | Biến | Dùng ở | Được module đọc tự động |
 |------|--------|------------------------|
-| `SUPABASE_URL` | `@nuxtjs/supabase` | ✓ auto |
-| `SUPABASE_KEY` | `@nuxtjs/supabase` | ✓ auto (anon key) |
-| `SUPABASE_SECRET_KEY` | server only (bypass RLS) | ✗ dùng thủ công |
+| `NUXT_PUBLIC_SUPABASE_URL` | Browser + server client | ✓ recommended |
+| `NUXT_PUBLIC_SUPABASE_KEY` | Browser + server client | ✓ recommended; dùng publishable key (`sb_publishable_...`) |
+| `NUXT_SUPABASE_SECRET_KEY` | server only admin client | ✓ recommended; dùng secret key (`sb_secret_...`) |
+| `SUPABASE_URL` | Legacy fallback | ✓ fallback |
+| `SUPABASE_KEY` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_ANON_KEY` | Legacy fallback | ✓ fallback |
+| `SUPABASE_SECRET_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Legacy fallback | ✓ fallback |
 | `SUPABASE_PROJECT_REF` | `supabase gen types` CLI | ✗ chỉ CLI |
+
+Không dùng `SUPABASE_SERVICE_KEY` cho code mới; module vẫn hỗ trợ nhưng đã deprecated, migrate sang `NUXT_SUPABASE_SECRET_KEY`.
+Legacy anon/service_role keys vẫn có thể hoạt động trong 2026, nhưng code mới nên dùng publishable/secret keys.
 
 ## Security model
 
@@ -35,14 +47,14 @@ Server (server/api, server/services, server/repositories)
 | Thứ | Lý do |
 |---|---|
 | `SUPABASE_URL` (project URL) | Public by design — như Firebase project ID |
-| `SUPABASE_KEY` (anon key) | Dùng trong browser, Supabase tự document là safe |
+| publishable key / legacy anon key | Dùng trong browser được, nhưng chỉ an toàn khi RLS + grants đúng |
 | Auth endpoint trong Network tab | Mọi browser auth đều visible — bình thường |
 
 Bảo mật thật sự dựa vào **RLS policies** và **server-side permission checks**, không phải ẩn URL hay key.
 
 ### Secret — KHÔNG BAO GIỜ expose
 
-**`SUPABASE_SECRET_KEY` (service role key):**
+**`NUXT_SUPABASE_SECRET_KEY` / legacy `SUPABASE_SECRET_KEY` (secret/service role key):**
 - Chỉ dùng trong `server/` qua `serverSupabaseServiceRole(event)`
 - Bypass toàn bộ RLS — nếu lộ ra client là lỗ hổng nghiêm trọng
 - Không bao giờ import trong `app/`
@@ -52,7 +64,7 @@ Bảo mật thật sự dựa vào **RLS policies** và **server-side permission
 ```ts
 // ✗ Tuyệt đối không làm
 // app/composables/anything.ts
-const client = createClient(url, process.env.SUPABASE_SECRET_KEY)
+const client = createClient(url, process.env.NUXT_SUPABASE_SECRET_KEY)
 
 // ✗ Không trả key qua API
 // server/api/debug.get.ts
@@ -65,11 +77,16 @@ const admin = await serverSupabaseServiceRole(event)
 
 ### Checklist bảo mật Supabase
 
-- [ ] `SUPABASE_SECRET_KEY` chỉ có trong `.env`, không bao giờ hardcode
+- [ ] `NUXT_SUPABASE_SECRET_KEY` / legacy `SUPABASE_SECRET_KEY` chỉ có trong `.env`, không bao giờ hardcode
 - [ ] `.env` nằm trong `.gitignore`
 - [ ] Mọi bảng data có `ENABLE ROW LEVEL SECURITY`
 - [ ] Client không gọi `supabase.from(...)` trực tiếp cho business data
 - [ ] `app_metadata` chỉ được set qua service role (server), không phải user
+- [ ] Không dùng `raw_user_meta_data` / `user_metadata` cho authorization hoặc RLS
+- [ ] Nếu dùng `app_metadata`/JWT claims cho authorization, nhớ token có thể stale cho tới khi refresh
+- [ ] View exposed cho `anon`/`authenticated` phải dùng `security_invoker = true` trên Postgres 15+
+- [ ] Policy `UPDATE` phải có policy `SELECT` tương ứng, nếu không update có thể trả 0 rows
+- [ ] Secret/service role key không nằm trong client bundle, logs, API response, hoặc git history
 
 ## ✓ Cách dùng đúng
 
@@ -135,7 +152,7 @@ export const BuildingRepository = {
     if (error) {
       throw createError({
         statusCode: 500,
-        data: { error: { code: 'INTERNAL_ERROR', message: error.message } },
+        data: { error: { code: 'INTERNAL_ERROR', message: 'Không tải được dữ liệu' } },
       })
     }
 
@@ -210,7 +227,18 @@ const client = useSupabaseClient<Database>() // ✓ typed
 
 ## Supabase SQL Files
 
-**Quy tắc:** Mọi thay đổi liên quan đến Supabase data (tạo bảng, RLS, seed, admin setup) đều phải có file `.sql` tương ứng trong `supabase/` để chạy qua Supabase SQL Editor. File phải an toàn trước khi apply.
+**Quy tắc:** Mọi thay đổi liên quan đến Supabase data (tạo bảng, RLS, seed, admin setup) đều phải có file `.sql` tương ứng trong `supabase/`. File phải an toàn trước khi apply.
+
+Khi có CLI/MCP:
+- Iterate schema bằng MCP `execute_sql` hoặc `supabase db query`; không tạo migration history cho mỗi lần thử.
+- Khi ready commit migration, tạo file bằng `supabase migration new <name>` rồi đưa SQL cuối vào file đó.
+- Nếu CLI command không chắc, chạy `supabase --help`, `supabase db --help`, hoặc `supabase migration --help`; không đoán flags.
+- Chạy advisors nếu có: `supabase db advisors` hoặc MCP `get_advisors`.
+
+Khi không có CLI/MCP:
+- Tạo file SQL trong `supabase/migrations/` hoặc `supabase/seeds/`.
+- Chạy trên dev project qua Supabase Dashboard SQL Editor.
+- Verify bằng query cuối file trước khi coi task hoàn tất.
 
 ### Folder structure
 
@@ -227,6 +255,8 @@ migrations/  YYYYMMDD_<kebab-case-description>.sql
 seeds/       <kebab-case-description>.sql
 ```
 
+Nếu dùng `supabase migration new <name>`, giữ filename do CLI tạo ra.
+
 Ví dụ:
 ```
 supabase/migrations/20260514_create_buildings.sql
@@ -238,15 +268,17 @@ supabase/seeds/set_admin_role.sql
 
 Mọi migration phải:
 - Bọc trong `BEGIN / COMMIT` — nếu có lỗi, tự động rollback toàn bộ
-- `REVOKE ALL FROM public` trước khi `GRANT` cụ thể — deny-by-default
-- `ENABLE ROW LEVEL SECURITY` ngay sau khi tạo bảng — không có RLS = mọi người đọc được
+- `REVOKE ALL` trước khi `GRANT` cụ thể — deny-by-default
+- `ENABLE ROW LEVEL SECURITY` ngay sau khi tạo bảng trong exposed schema
+- Grant role tối thiểu cho Data API, rồi để RLS quyết định row access
 - Policy dùng `auth.uid()` hoặc `auth.jwt()` — không được dùng `USING (true)` cho bảng chứa data thật
+- `INSERT`/`UPDATE` phải có `WITH CHECK`; `UPDATE` cũng cần `SELECT` policy tương ứng
 
 ```sql
 -- =============================================================================
 -- Migration: <description>
 -- Date: YYYY-MM-DD
--- Run in: Supabase Dashboard → SQL Editor
+-- Run in: MCP/CLI or Supabase Dashboard SQL Editor
 -- =============================================================================
 
 BEGIN;
@@ -261,8 +293,11 @@ CREATE TABLE IF NOT EXISTS public.<table_name> (
 );
 
 -- 2. Lock down access — deny public by default
-REVOKE ALL ON TABLE public.<table_name> FROM public, anon;
+REVOKE ALL ON TABLE public.<table_name> FROM public, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.<table_name> TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.<table_name> TO service_role;
+-- Chỉ grant anon nếu table thật sự public:
+-- GRANT SELECT ON TABLE public.<table_name> TO anon;
 
 -- 3. Enable RLS — REQUIRED, không có RLS = lỗ hổng nghiêm trọng
 ALTER TABLE public.<table_name> ENABLE ROW LEVEL SECURITY;
@@ -273,13 +308,26 @@ ALTER TABLE public.<table_name> ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "<table_name>: owner read"
   ON public.<table_name> FOR SELECT
   TO authenticated
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "<table_name>: owner insert"
+  ON public.<table_name> FOR INSERT
+  TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "<table_name>: owner update"
+  ON public.<table_name> FOR UPDATE
+  TO authenticated
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
 --   Pattern B: admin thấy tất cả (role từ app_metadata)
 CREATE POLICY "<table_name>: admin read all"
   ON public.<table_name> FOR SELECT
   TO authenticated
   USING ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+-- Không dùng raw_user_meta_data/user_metadata trong RLS; user có thể tự sửa metadata đó.
 
 --   Pattern C: bảng shared (buildings, rooms) — authenticated user đọc được
 --   Dùng khi data không phải user-private nhưng vẫn cần đăng nhập
@@ -323,7 +371,7 @@ Seed phải:
 -- =============================================================================
 -- Seed: <description>
 -- Date: YYYY-MM-DD
--- Run in: Supabase Dashboard → SQL Editor
+-- Run in: MCP/CLI or Supabase Dashboard SQL Editor
 -- =============================================================================
 
 BEGIN;
@@ -346,10 +394,15 @@ SELECT ...;
 ### Security checklist — bắt buộc trước khi apply
 
 - [ ] Wrapped trong `BEGIN / COMMIT`
-- [ ] `REVOKE ALL FROM public, anon` trước `GRANT`
+- [ ] `REVOKE ALL` khỏi `public`, `anon`, `authenticated` trước `GRANT`
 - [ ] `ENABLE ROW LEVEL SECURITY` cho mọi bảng data
+- [ ] Grants tối thiểu cho `anon`/`authenticated`; không grant Data API nếu app không cần browser access
 - [ ] Policy dùng `auth.uid()` hoặc `auth.jwt()` — không có `USING (true)` cho data thật
+- [ ] `auth.jwt()` chỉ đọc `app_metadata`, không đọc `user_metadata`
+- [ ] `INSERT`/`UPDATE` có `WITH CHECK`; `UPDATE` có `SELECT` policy tương ứng
+- [ ] View exposed dùng `WITH (security_invoker = true)` hoặc không expose cho `anon`/`authenticated`
 - [ ] Function dùng `SECURITY INVOKER` (không phải `DEFINER`) trừ khi có lý do rõ ràng
+- [ ] `SECURITY DEFINER` function không nằm trong exposed schema
 - [ ] Không có dynamic SQL với string concatenation (`EXECUTE 'SELECT ' || user_input`)
 - [ ] Không hardcode secret, token, hay password trong file
 - [ ] Có `SELECT` verify cuối file
@@ -357,7 +410,7 @@ SELECT ...;
 ### ✗ Anti-patterns
 
 ```sql
--- ✗ Không có RLS = mọi authenticated user đọc được toàn bộ bảng
+-- ✗ Không có RLS trên exposed/granted table = data có thể bị đọc rộng hơn mong muốn
 CREATE TABLE public.invoices (...);
 -- phải thêm: ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
@@ -389,6 +442,18 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 
 1. Tạo `.sql` file cùng lúc với code feature (trong cùng task group)
 2. Tự review theo Security checklist ở trên trước khi apply
-3. Chạy trong **Supabase Dashboard → SQL Editor** (dev project trước)
-4. Verify kết quả bằng `SELECT` cuối file
-5. Apply lên staging/prod theo thứ tự file name (migrations theo ngày)
+3. Apply trên dev bằng MCP/CLI nếu có; nếu không có thì dùng **Supabase Dashboard → SQL Editor**
+4. Verify kết quả bằng `SELECT` cuối file hoặc test query tương đương
+5. Apply lên staging/prod theo migration order
+
+## Data API & RLS Debugging
+
+- Data API access cần cả `GRANT` và RLS policy. `GRANT` quyết định role chạm được object; RLS quyết định row nào thấy/sửa được.
+- Nếu SQL-created table trả `42501` hoặc client không thấy bảng, kiểm tra Data API settings/exposed schema và grants trước khi sửa RLS.
+- Nếu `UPDATE` không lỗi nhưng trả 0 rows, kiểm tra có `SELECT` policy cho row đó chưa.
+- Nếu view bypass RLS, dùng `CREATE VIEW ... WITH (security_invoker = true)` trên Postgres 15+ hoặc revoke khỏi `anon`/`authenticated`.
+
+## Storage Notes
+
+- Storage policy cũng là RLS trên `storage.objects`; không public bucket khi file chứa dữ liệu user/private.
+- Upsert object cần quyền `INSERT` + `SELECT` + `UPDATE`; thiếu `SELECT`/`UPDATE` có thể khiến replace fail.

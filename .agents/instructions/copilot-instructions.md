@@ -11,6 +11,7 @@ Follow these conventions:
 - Nested composables auto-import through `imports.dirs: ["composables/**"]`.
 - Use Tailwind theme tokens from `tailwind.config.ts` before introducing new colors.
 - Use Pinia for shared client state.
-- Use the Nuxt Supabase integration for Supabase features.
+- Use the Nuxt Supabase integration for Supabase features; client-side Supabase should be auth-only, with business data going through `server/api`.
+- Put Supabase schema/RLS changes in `supabase/migrations` or `supabase/seeds`.
 - Keep reusable agent assets in `.agents`; `.codex` and `.github` paths are compatibility symlinks.
 - For OpenSpec work, use the assets under `.agents/skills/openspec-*` and `.agents/prompts/opsx-*.prompt.md`.

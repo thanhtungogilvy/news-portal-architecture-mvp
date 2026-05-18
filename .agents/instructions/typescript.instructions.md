@@ -14,7 +14,7 @@ Strict mode bật. Không dùng `any`. Infer từ Zod. Type API response và com
 export type ApiSuccess<T> = { data: T; meta?: Record<string, unknown> }
 export type ApiError = {
   error: {
-    code: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'CONFLICT'
+    code: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'CONFLICT' | 'INTERNAL_ERROR'
     message: string
     details?: unknown
   }

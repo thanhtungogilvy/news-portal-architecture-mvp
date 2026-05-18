@@ -31,6 +31,8 @@ Nuxt 4 — source app nằm trong `app/`, server nằm trong `server/`, config �
 | `server/middleware/` | Server middleware (logging, auth context) |
 | `app/middleware/` | Route middleware cho page navigation |
 | `app/plugins/` | Nuxt plugins; dùng `.client.ts`/`.server.ts` khi runtime-specific |
+| `supabase/migrations/` | Supabase schema changes: tables, indexes, RLS, functions, triggers |
+| `supabase/seeds/` | Supabase seed/admin setup scripts |
 | `docs/architecture/` | Architecture decisions, rules |
 | `docs/api-contracts/` | API shape documentation |
 | `docs/ui-patterns/` | UI pattern documentation |
@@ -44,6 +46,7 @@ Nuxt 4 — source app nằm trong `app/`, server nằm trong `server/`, config �
 - `server/utils` được auto-import trong server code; `app/utils` dùng cho code shared client/server như validators, mappers, constants.
 - Chỉ tạo `shared/` nếu cần module thuần không phụ thuộc Vue/Nuxt app context và được dùng ở cả app + server.
 - Route middleware nằm ở `app/middleware`; server middleware nằm ở `server/middleware`, hai loại này không thay thế nhau.
+- Supabase schema changes phải có SQL artifact trong `supabase/migrations/` hoặc `supabase/seeds/`; không chỉ sửa Dashboard rồi bỏ qua repo.
 
 ## ✓ Cách dùng đúng
 
@@ -92,6 +95,15 @@ server/
     └── buildings.ts       ← Supabase queries
 ```
 
+**Supabase SQL source-of-truth:**
+```
+supabase/
+├── migrations/
+│   └── 20260601_create_buildings.sql
+└── seeds/
+    └── set_admin_role.sql
+```
+
 ## ✗ Cách không được dùng
 
 ```
@@ -112,6 +124,9 @@ server/validation/buildings.ts      ← đặt ở app/utils/validators/ để d
 
 # ✗ Đừng đặt server route trong app/
 app/server/api/buildings.ts         ← phải là server/api/buildings.ts
+
+# ✗ Đừng thay schema Supabase mà không có SQL trong repo
+Dashboard-only table change          ← phải có supabase/migrations/*.sql
 ```
 
 ## Nguyên tắc incremental (v0.1)

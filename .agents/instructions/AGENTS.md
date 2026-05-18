@@ -38,6 +38,8 @@
 - Remember this repo sets component `pathPrefix: false`; component filenames must be unique.
 - Nested composables auto-import because `nuxt.config.ts` sets `imports.dirs: ["composables/**"]`.
 - Keep Supabase work behind the Nuxt Supabase integration unless a lower-level `@supabase/supabase-js` client is clearly needed.
+- Client-side Supabase is for Auth only; business data goes through `server/api`.
+- Supabase schema/RLS changes need SQL artifacts under `supabase/migrations` or `supabase/seeds`.
 - Use Tailwind theme tokens before adding one-off colors.
 
 ## OpenSpec

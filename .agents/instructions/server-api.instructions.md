@@ -44,6 +44,15 @@ type ApiError      = { error: { code: string; message: string; details?: unknown
 | `NOT_FOUND` | 404 | Resource không tồn tại |
 | `VALIDATION_ERROR` | 422 | Input không qua Zod schema |
 | `CONFLICT` | 409 | Xung đột trạng thái (duplicate, etc.) |
+| `INTERNAL_ERROR` | 500 | Lỗi hạ tầng hoặc lỗi Supabase không expose chi tiết |
+
+## Supabase Server Rules
+
+- Repository dùng `serverSupabaseClient(event)` mặc định để giữ user context/RLS.
+- `serverSupabaseServiceRole(event)` chỉ dùng sau auth + permission check rõ ràng trong service layer.
+- Không trả `error.message` từ Supabase cho lỗi nhạy cảm nếu message có thể lộ schema/constraint nội bộ; map sang message an toàn ở API boundary khi cần.
+- Map lỗi Supabase/Postgres phổ biến: `PGRST116` → `NOT_FOUND`, `23505` → `CONFLICT`, RLS/permission `42501` → `FORBIDDEN` hoặc `INTERNAL_ERROR` tùy route.
+- Nếu endpoint cần mutate data, service layer vẫn check permission dù RLS đã có policy; RLS là lớp phòng thủ, không thay thế business authorization.
 
 ## ✓ Cách dùng đúng
 
@@ -154,9 +163,15 @@ export const BuildingRepository = {
       .range(from, to)
 
     if (error) {
+      if (error.code === '42501') {
+        throw createError({
+          statusCode: 403,
+          data: { error: { code: 'FORBIDDEN', message: 'Không có quyền truy cập dữ liệu' } },
+        })
+      }
       throw createError({
         statusCode: 500,
-        data: { error: { code: 'INTERNAL_ERROR', message: error.message } },
+        data: { error: { code: 'INTERNAL_ERROR', message: 'Không tải được danh sách tòa nhà' } },
       })
     }
     return { items: (data ?? []).map(mapBuilding), total: count ?? 0 }
@@ -171,9 +186,15 @@ export const BuildingRepository = {
       .single()
 
     if (error) {
+      if (error.code === '23505') {
+        throw createError({
+          statusCode: 409,
+          data: { error: { code: 'CONFLICT', message: 'Dữ liệu đã tồn tại' } },
+        })
+      }
       throw createError({
         statusCode: 500,
-        data: { error: { code: 'INTERNAL_ERROR', message: error.message } },
+        data: { error: { code: 'INTERNAL_ERROR', message: 'Không tạo được tòa nhà' } },
       })
     }
     return mapBuilding(data)
@@ -231,6 +252,11 @@ export default defineEventHandler(async (event) => {
 // ✗ Đừng tạo endpoint mà không có error handling cho Supabase error
 const { data } = await client.from('buildings').select('*')
 // → const { data, error } = ... ; if (error) throw createError(...)
+
+// ✗ Đừng dùng service role trong repository thường
+const admin = await serverSupabaseServiceRole(event)
+return admin.from('buildings').select('*')
+// → Chỉ dùng sau service đã auth + check permission rõ ràng
 ```
 
 ## File naming convention

@@ -9,11 +9,18 @@ applyTo: "app/types/database.types.ts, server/**/*.ts, app/utils/mappers/**"
 ## Regenerate types
 
 ```bash
-npx supabase gen types typescript --project-id alndujothmxhilmvykqs \
+npx supabase gen types typescript --project-id "$SUPABASE_PROJECT_REF" \
   > app/types/database.types.ts
 ```
 
-Chạy lại mỗi khi schema Supabase thay đổi.
+Chạy lại mỗi khi schema Supabase thay đổi. `SUPABASE_PROJECT_REF` lấy từ `.env` hoặc Dashboard project ref; không hardcode project id trong instruction/code.
+
+## Schema Change Rules
+
+- Mọi schema/RLS/function/storage policy change phải có SQL artifact trong `supabase/migrations/` hoặc `supabase/seeds/`.
+- Nếu có Supabase CLI/MCP, iterate bằng `execute_sql` hoặc `supabase db query`, rồi tạo migration bằng `supabase migration new <name>`.
+- Sau khi apply migration, chạy lại type generation và review diff của `app/types/database.types.ts`.
+- Không sửa `app/types/database.types.ts` bằng tay để “fix type”.
 
 ## ✓ Cách dùng đúng
 
@@ -83,11 +90,33 @@ export const BuildingRepository = {
     if (error) {
       throw createError({
         statusCode: 500,
-        data: { error: { code: 'INTERNAL_ERROR', message: error.message } },
+        data: { error: { code: 'INTERNAL_ERROR', message: 'Không tải được dữ liệu' } },
       })
     }
     return data.map(mapBuilding)  // ← luôn map trước khi return
   },
+}
+```
+
+**Mapper phải narrow nullable/enum mismatch rõ ràng, không cast bừa:**
+```ts
+import type { Enums, Tables } from '~/types/database.types'
+
+type BuildingStatus = Enums<'building_status'>
+const BUILDING_STATUSES = ['active', 'inactive'] as const satisfies readonly BuildingStatus[]
+
+function toBuildingStatus(value: Tables<'buildings'>['status']): BuildingStatus {
+  if (value && BUILDING_STATUSES.includes(value)) return value
+  return 'inactive'
+}
+
+export function mapBuilding(row: Tables<'buildings'>): Building {
+  return {
+    id: row.id,
+    status: toBuildingStatus(row.status),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
 }
 ```
 
@@ -117,6 +146,10 @@ import type { Tables } from '~/types/database.types'  // ← component chỉ dù
 // ✗ Không bỏ qua error từ Supabase query
 const { data } = await client.from('buildings').select('*')
 // → Phải check error: const { data, error } = ...
+
+// ✗ Không cast DB enum/string bừa để né type lỗi
+status: row.status as BuildingStatus
+// → Fix enum ở DB/Zod/DTO mapping cho khớp, hoặc narrow explicit
 ```
 
 ## Enums từ DB
