@@ -33,9 +33,21 @@ Row Level Security SHALL be enabled on `categories` and `news` to ensure data ac
 - **WHEN** an anonymous user queries `categories` table
 - **THEN** all categories SHALL be readable
 
-#### Scenario: Write requires authentication
-- **WHEN** an anonymous user attempts INSERT or UPDATE on `news`
+#### Scenario: Non-admin authenticated users cannot mutate admin-managed content
+- **WHEN** an authenticated user without admin role attempts INSERT, UPDATE, or DELETE on `news` or `categories`
 - **THEN** RLS SHALL deny the operation
+
+#### Scenario: Admin users can mutate admin-managed content
+- **WHEN** an authenticated user with admin role queries `news` or `categories` for INSERT, UPDATE, or DELETE operations
+- **THEN** RLS SHALL allow the operation
+
+#### Scenario: Non-admin authenticated users cannot read draft or archived news
+- **WHEN** an authenticated user without admin role queries `news`
+- **THEN** rows with `status IN ('draft', 'archived')` SHALL not be returned
+
+#### Scenario: Admin users can read all news statuses
+- **WHEN** an authenticated user with admin role queries `news`
+- **THEN** rows with `status = 'draft'`, `status = 'published'`, and `status = 'archived'` SHALL all be readable
 
 ### Requirement: App DTOs have mapped types for categories and news
 `app/types/category.ts` and `app/types/news.ts` SHALL define app-level DTO interfaces distinct from raw Supabase row types.

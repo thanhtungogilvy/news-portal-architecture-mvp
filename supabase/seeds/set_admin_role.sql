@@ -1,0 +1,27 @@
+-- Admin role bootstrap / setup
+-- Usage: Run this via Supabase Dashboard → SQL Editor (using service role / postgres)
+--        or via `supabase db execute` with the service role key.
+--
+-- Replace 'thanhtung.nguyen@verticurl.com' with the actual admin user's email address.
+-- After running, the admin user MUST log out and log back in for the new JWT
+-- claims (app_metadata.role = 'admin') to take effect.
+--
+-- To apply:
+--   UPDATE auth.users
+--     SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
+--     WHERE email = 'thanhtung.nguyen@verticurl.com';
+--
+-- To verify:
+--   SELECT id, email, raw_app_meta_data
+--     FROM auth.users
+--     WHERE email = 'thanhtung.nguyen@verticurl.com';
+--
+-- To remove admin role:
+--   UPDATE auth.users
+--     SET raw_app_meta_data = raw_app_meta_data - 'role'
+--     WHERE email = 'thanhtung.nguyen@verticurl.com';
+
+-- Uncomment and edit the line below, then run:
+-- UPDATE auth.users
+--   SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
+--   WHERE email = 'thanhtung.nguyen@verticurl.com';
