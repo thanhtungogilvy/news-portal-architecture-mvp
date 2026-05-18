@@ -1,0 +1,28 @@
+schema: spec-driven
+
+context: |
+  Tech stack:
+  - Nuxt 4, Vue 3, TypeScript, ESM.
+  - npm with package-lock.json.
+  - Tailwind CSS via @nuxtjs/tailwindcss.
+  - Pinia via @pinia/nuxt.
+  - Supabase via @nuxtjs/supabase and @supabase/supabase-js.
+  - Zod, Day.js, clsx, VueUse, VueUse Motion.
+  - nuxt-svgo for SVG icons from app/assets/icons.
+
+  Project conventions:
+  - Use the Nuxt 4 app structure under app/.
+  - Keep TypeScript strict.
+  - Prefer existing Tailwind theme tokens from tailwind.config.ts.
+  - Use npm scripts for validation: npm run lint and npm run typecheck.
+  - Keep shared agent assets in .agents; .codex and .github are compatibility symlinks.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
