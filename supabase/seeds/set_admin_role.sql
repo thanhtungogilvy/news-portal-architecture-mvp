@@ -25,3 +25,8 @@
 -- UPDATE auth.users
 --   SET raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
 --   WHERE email = 'thanhtung.nguyen@verticurl.com';
+
+-- To verify:
+SELECT id, email, raw_app_meta_data
+FROM auth.users
+WHERE email = 'thanhtung.nguyen@verticurl.com';

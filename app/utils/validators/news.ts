@@ -29,7 +29,7 @@ export const newsCreateSchema = z.object({
   thumbnailUrl: z.string().url().nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   status: z.enum(['draft', 'published', 'archived']).default('draft'),
-  publishedAt: z.string().datetime().nullable().optional(),
+  publishedAt: z.string().datetime({ offset: true }).nullable().optional(),
 })
 
 export const newsPatchSchema = newsCreateSchema.partial()

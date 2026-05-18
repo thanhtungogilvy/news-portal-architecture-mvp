@@ -2,7 +2,7 @@
 import clsx from 'clsx'
 
 const props = defineProps<{
-  variant?: 'primary' | 'secondary' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
@@ -23,6 +23,8 @@ const buttonClass = computed(() =>
         props.variant === 'secondary',
       'text-body hover:text-title hover:bg-smoke-100 focus-visible:ring-blue-400':
         props.variant === 'ghost',
+      'bg-error text-white hover:bg-error-dark focus-visible:ring-error':
+        props.variant === 'destructive',
     },
     {
       'opacity-50 cursor-not-allowed pointer-events-none': props.disabled,

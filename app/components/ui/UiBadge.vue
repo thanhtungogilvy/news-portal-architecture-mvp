@@ -2,7 +2,7 @@
 import clsx from 'clsx'
 
 const props = defineProps<{
-  color?: 'default' | 'primary' | 'success' | 'warning'
+  color?: 'default' | 'primary' | 'success' | 'warning' | 'danger'
 }>()
 
 const badgeClass = computed(() =>
@@ -11,6 +11,7 @@ const badgeClass = computed(() =>
     'bg-blue-50 text-blue-600': props.color === 'primary',
     'bg-success-light text-success-dark': props.color === 'success',
     'bg-warning-light text-warning-dark': props.color === 'warning',
+    'bg-error-light text-error-dark': props.color === 'danger',
   }),
 )
 </script>
