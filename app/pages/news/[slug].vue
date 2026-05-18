@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatNewsDate, formatViewCount } from '~/utils/format/news'
+
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
@@ -18,11 +20,6 @@ onMounted(() => {
     { immediate: true },
   )
 })
-
-function formatDate(iso: string | null) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 </script>
 
 <template>
@@ -55,7 +52,14 @@ function formatDate(iso: string | null) {
         <UiBadge v-if="article.category" color="primary">
           {{ article.category.name }}
         </UiBadge>
-        <span class="text-sm text-body">{{ formatDate(article.publishedAt) }}</span>
+        <div v-if="article.publishedAt" class="inline-flex items-center gap-1.5 text-sm text-body">
+          <IconCalendar class="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{{ formatNewsDate(article.publishedAt) }}</span>
+        </div>
+        <div class="inline-flex items-center gap-1.5 text-sm text-body">
+          <IconEye class="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{{ formatViewCount(article.viewCount) }} lượt xem</span>
+        </div>
       </div>
 
       <h1 class="mb-6 text-3xl font-bold leading-tight text-title">
@@ -71,11 +75,12 @@ function formatDate(iso: string | null) {
         >
       </div>
 
-      <!-- eslint-disable-next-line vue/no-v-html -->
+      <!-- eslint-disable vue/no-v-html -->
       <div
         class="prose prose-gray max-w-none text-body leading-relaxed"
         v-html="article.content"
       />
+      <!-- eslint-enable vue/no-v-html -->
     </article>
   </div>
 </template>

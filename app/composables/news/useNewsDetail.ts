@@ -16,6 +16,15 @@ export function useNewsDetail(slug: MaybeRef<string>) {
     if (!import.meta.client) return
     try {
       await $fetch(`/api/news/${id}/view`, { method: 'POST' })
+      if (data.value?.data?.id === id) {
+        data.value = {
+          ...data.value,
+          data: {
+            ...data.value.data,
+            viewCount: data.value.data.viewCount + 1,
+          },
+        }
+      }
     }
     catch {
       // best-effort — ignore failures
