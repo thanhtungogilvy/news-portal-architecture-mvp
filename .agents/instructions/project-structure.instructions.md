@@ -2,135 +2,235 @@
 applyTo: "**"
 ---
 
-# Project Structure
+# Project Structure — News Portal MVP
 
 Nuxt 4 — source app nằm trong `app/`, server nằm trong `server/`, config ở root.
+
+## Domains trong project này
+
+| Domain | Mô tả |
+|--------|-------|
+| `news` | Bài viết: public read, admin CRUD |
+| `category` | Danh mục: public read, admin CRUD |
+| `auth` | Login/logout, session, route guard |
+| `admin` | Admin panel shell, layout, navigation |
+| `layout` | Public site header, footer, nav |
 
 ## Folder Ownership
 
 | Folder | Owns |
 |--------|------|
 | `app/pages/` | Route definition, route meta, middleware, screen-level orchestration |
-| `app/layouts/` | App shell và navigation frame |
+| `app/pages/admin/` | Admin panel routes: login, categories, news |
+| `app/layouts/` | `default.vue` (public), `admin.vue` (admin panel) |
 | `app/components/ui/` | UI primitives — không chứa domain logic |
-| `app/components/<domain>/` | Domain display blocks — nhận data qua props |
-| `app/components/app/` | Shell pieces: AppSidebar, AppHeader, AppBreadcrumb |
-| `app/composables/<domain>/` | Client-side orchestration: list, detail, form, submit |
-| `app/stores/` | Global client state: session, sidebar, notifications |
-| `app/types/` | DTOs, input types, response types |
-| `app/utils/validators/` | Zod schemas dùng chung cho client và server |
-| `app/utils/constants/` | Enums, role strings, capability keys |
-| `app/utils/mappers/` | DB row → app DTO transformations |
-| `app/utils/format/` | Format helpers: date, currency, number |
+| `app/components/layout/` | Public site shell: `LayoutHeader.vue`, `LayoutFooter.vue`, `LayoutNav.vue` |
+| `app/components/news/` | `NewsCard.vue`, `NewsDetailBody.vue`, `NewsPrevNextNav.vue`, `NewsHero.vue` |
+| `app/components/category/` | `CategorySectionHeader.vue`, `CategoryCard.vue` |
+| `app/components/admin/` | `AdminNewsTable.vue`, `AdminNewsForm.vue`, `AdminCategoryTable.vue`, `AdminCategoryForm.vue` |
+| `app/components/auth/` | `AuthLoginForm.vue` |
+| `app/composables/news/` | `useFeaturedNews.ts`, `useMostViewedNews.ts`, `useNewsList.ts`, `useNewsDetail.ts` |
+| `app/composables/categories/` | `useCategoryList.ts`, `useCategoryDetail.ts` |
+| `app/composables/admin/` | `useAdminNews.ts`, `useAdminCategories.ts` |
+| `app/composables/auth/` | `useAuth.ts`, `useRequireAuth.ts` |
+| `app/stores/` | `auth.ts` — session, user, isAuthenticated |
+| `app/middleware/` | `auth.ts` (guard admin routes), `guest.ts` (redirect logged-in user) |
+| `app/types/` | `news.ts`, `category.ts`, `auth.ts`, `api.ts` |
+| `app/utils/validators/` | `news.ts`, `category.ts` — Zod schemas dùng chung client + server |
+| `app/utils/constants/` | `news.ts` (status, etc.), `category.ts` |
+| `app/utils/mappers/` | `news.ts`, `category.ts` — DB row → app DTO |
+| `app/utils/format/` | `date.ts`, `content.ts` |
 | `app/assets/icons/` | SVG icons — tự động import qua nuxt-svgo |
-| `app/assets/css/` hoặc `app/assets/scss/` | Global CSS nếu cần; phải register trong `nuxt.config.ts` qua `css` |
-| `server/api/` | HTTP contract, Zod validation entry point, auth guard |
-| `server/services/` | Business logic, permission re-check |
-| `server/repositories/` | Supabase query only — không có business logic |
-| `server/utils/` | Server-side helpers: auth, error mapping |
-| `server/middleware/` | Server middleware (logging, auth context) |
-| `app/middleware/` | Route middleware cho page navigation |
-| `app/plugins/` | Nuxt plugins; dùng `.client.ts`/`.server.ts` khi runtime-specific |
-| `supabase/migrations/` | Supabase schema changes: tables, indexes, RLS, functions, triggers |
-| `supabase/seeds/` | Supabase seed/admin setup scripts |
-| `docs/architecture/` | Architecture decisions, rules |
-| `docs/api-contracts/` | API shape documentation |
-| `docs/ui-patterns/` | UI pattern documentation |
+| `server/api/news/` | Public news endpoints |
+| `server/api/categories/` | Public category endpoints |
+| `server/api/admin/news/` | Admin news CRUD |
+| `server/api/admin/categories/` | Admin categories CRUD |
+| `server/api/auth/` | `me.get.ts` |
+| `server/services/` | `news.service.ts`, `category.service.ts` |
+| `server/repositories/` | `news.repository.ts`, `category.repository.ts`, `user.repository.ts` |
+| `server/utils/` | `auth.ts` (requireAuth), `errors.ts` (createApiError), `response.ts` |
+| `supabase/migrations/` | Schema: categories, news, RLS policies |
+| `supabase/seeds/` | Seed data và admin setup |
 
 ## Nuxt 4 Rules
 
-- App source nằm trong `app/`; không tạo root-level `components/`, `composables/`, `pages/`, `layouts/`, `plugins/`.
+- App source nằm trong `app/`; không tạo root-level `components/`, `composables/`, `pages/`.
 - Nitro server source nằm trong root-level `server/`, không nằm dưới `app/server/`.
-- `app/components` auto-import component; repo dùng `pathPrefix: false`, nên component filename phải unique.
-- `app/composables` auto-import nested composables vì `nuxt.config.ts` có `imports.dirs: ["composables/**"]`.
-- `server/utils` được auto-import trong server code; `app/utils` dùng cho code shared client/server như validators, mappers, constants.
-- Chỉ tạo `shared/` nếu cần module thuần không phụ thuộc Vue/Nuxt app context và được dùng ở cả app + server.
-- Route middleware nằm ở `app/middleware`; server middleware nằm ở `server/middleware`, hai loại này không thay thế nhau.
-- Supabase schema changes phải có SQL artifact trong `supabase/migrations/` hoặc `supabase/seeds/`; không chỉ sửa Dashboard rồi bỏ qua repo.
+- `app/components` auto-import; repo dùng `pathPrefix: false` → filename phải unique toàn project.
+- `app/composables` auto-import nested vì `imports.dirs: ["composables/**"]`.
+- `server/utils` được Nitro auto-import trong server code.
+- `app/utils` dùng cho code shared client/server: validators, mappers, constants.
+- Route middleware ở `app/middleware/`; server middleware ở `server/middleware/` — không thay thế nhau.
+- Supabase schema changes phải có SQL artifact trong `supabase/migrations/` hoặc `supabase/seeds/`.
 
-## ✓ Cách dùng đúng
+## Boundary rules
 
-**Đặt component theo đúng layer:**
-```
-app/components/
-├── ui/
-│   ├── UiButton.vue       ← generic, không có domain
-│   ├── UiInput.vue
-│   ├── UiModal.vue
-│   ├── UiStatusBadge.vue
-│   └── UiEmptyState.vue
-├── app/
-│   ├── AppSidebar.vue     ← shell, không có business logic
-│   └── AppHeader.vue
-└── buildings/
-    ├── BuildingCard.vue   ← domain display
-    └── BuildingForm.vue
-```
+- `app/pages/`: orchestration + SEO meta + layout composition, không chứa business rule.
+- `app/components/`: UI và interaction cục bộ, không chứa business rule.
+- `app/composables/`: fetch state, submit state, feature interaction logic.
+- `app/stores/`: chỉ cho shared client state sống lâu qua nhiều route — hiện tại chỉ `auth.ts`.
+- `server/api/`: HTTP contract — validate input (Zod), auth guard, delegate xuống service.
+- `server/services/`: business logic + permission check.
+- `server/repositories/`: data access Supabase only, không có business logic.
+- Client Supabase chỉ dùng cho Auth; business data đi qua `server/api/`.
 
-**Composable theo domain và mục đích:**
-```
-app/composables/
-└── buildings/
-    ├── useBuildingList.ts    ← fetch list, pagination, filter
-    ├── useBuildingDetail.ts  ← fetch single
-    └── useBuildingForm.ts    ← form state, validation, submit
-```
+## Full folder structure
 
-**Validator dùng chung cho client + server:**
 ```
-app/utils/validators/
-└── buildings.ts    ← import bởi cả useBuildingForm.ts và server/api/buildings/
-```
+app/
+  pages/
+    index.vue                       ← Home: featured + most viewed
+    category/[slug].vue             ← Category: list + infinite scroll
+    news/[slug].vue                 ← News detail + view count
+    admin/
+      login.vue
+      index.vue                     ← Admin dashboard
+      categories/
+        index.vue
+        create.vue
+        [id].vue
+      news/
+        index.vue
+        create.vue
+        [id].vue
+  layouts/
+    default.vue                     ← Public layout
+    admin.vue                       ← Admin panel layout
+  components/
+    ui/                             ← Primitives: UiButton, UiInput, UiModal...
+    layout/                         ← LayoutHeader, LayoutFooter, LayoutNav
+    news/                           ← NewsCard, NewsDetailBody, NewsPrevNextNav, NewsHero
+    category/                       ← CategorySectionHeader, CategoryCard
+    admin/                          ← AdminNewsTable, AdminNewsForm, AdminCategoryTable, AdminCategoryForm
+    auth/                           ← AuthLoginForm
+  composables/
+    news/
+      useFeaturedNews.ts
+      useMostViewedNews.ts
+      useNewsList.ts                ← pagination, infinite scroll
+      useNewsDetail.ts
+    categories/
+      useCategoryList.ts
+      useCategoryDetail.ts
+    admin/
+      useAdminNews.ts
+      useAdminCategories.ts
+    auth/
+      useAuth.ts
+      useRequireAuth.ts
+  stores/
+    auth.ts
+  middleware/
+    auth.ts                         ← guard admin routes
+    guest.ts                        ← redirect logged-in user away from login
+  types/
+    news.ts                         ← NewsStatus, News DTO, NewsInput
+    category.ts                     ← Category DTO, CategoryInput
+    auth.ts                         ← AuthUser
+    api.ts                          ← ApiSuccess<T>, ApiError
+  utils/
+    validators/
+      news.ts                       ← Zod schema dùng chung client + server
+      category.ts
+    constants/
+      news.ts                       ← NEWS_STATUS, etc.
+      category.ts
+    mappers/
+      news.ts                       ← mapNews(row) → News
+      category.ts                   ← mapCategory(row) → Category
+    format/
+      date.ts
+      content.ts
+  assets/
+    icons/                          ← SVG icons (nuxt-svgo)
 
-**Server pattern:**
-```
 server/
-├── api/buildings/
-│   ├── index.get.ts       ← GET /api/buildings
-│   ├── index.post.ts      ← POST /api/buildings
-│   └── [id].get.ts        ← GET /api/buildings/:id
-├── services/
-│   └── buildings.ts       ← business logic
-└── repositories/
-    └── buildings.ts       ← Supabase queries
-```
+  api/
+    news/
+      index.get.ts                  ← GET /api/news
+      featured.get.ts               ← GET /api/news/featured
+      most-viewed.get.ts            ← GET /api/news/most-viewed
+      [slug].get.ts                 ← GET /api/news/:slug
+      [id]/
+        view.post.ts                ← POST /api/news/:id/view
+    categories/
+      index.get.ts                  ← GET /api/categories
+      [slug].get.ts                 ← GET /api/categories/:slug
+    admin/
+      news/
+        index.get.ts                ← GET /api/admin/news
+        index.post.ts               ← POST /api/admin/news
+        [id].get.ts
+        [id].patch.ts
+        [id].delete.ts
+      categories/
+        index.get.ts
+        index.post.ts
+        [id].patch.ts
+        [id].delete.ts
+    auth/
+      me.get.ts
+  services/
+    news.service.ts
+    category.service.ts
+  repositories/
+    news.repository.ts
+    category.repository.ts
+    user.repository.ts
+  utils/
+    auth.ts                         ← requireAuth(event)
+    errors.ts                       ← createApiError helpers
+    response.ts                     ← wrapSuccess helpers
 
-**Supabase SQL source-of-truth:**
-```
 supabase/
-├── migrations/
-│   └── 20260601_create_buildings.sql
-└── seeds/
-    └── set_admin_role.sql
+  migrations/
+    YYYYMMDD_create_categories.sql
+    YYYYMMDD_create_news.sql
+  seeds/
+    set_admin_role.sql
 ```
 
-## ✗ Cách không được dùng
+## Component naming (pathPrefix: false → filename phải unique)
+
+| Component | File | Layer |
+|-----------|------|-------|
+| `<UiButton />` | `ui/UiButton.vue` | UI primitive |
+| `<UiInput />` | `ui/UiInput.vue` | UI primitive |
+| `<LayoutHeader />` | `layout/LayoutHeader.vue` | Public shell |
+| `<NewsCard />` | `news/NewsCard.vue` | Domain |
+| `<NewsDetailBody />` | `news/NewsDetailBody.vue` | Domain |
+| `<NewsPrevNextNav />` | `news/NewsPrevNextNav.vue` | Domain |
+| `<NewsHero />` | `news/NewsHero.vue` | Domain |
+| `<CategorySectionHeader />` | `category/CategorySectionHeader.vue` | Domain |
+| `<AdminNewsTable />` | `admin/AdminNewsTable.vue` | Domain |
+| `<AdminNewsForm />` | `admin/AdminNewsForm.vue` | Domain |
+| `<AdminCategoryTable />` | `admin/AdminCategoryTable.vue` | Domain |
+| `<AdminCategoryForm />` | `admin/AdminCategoryForm.vue` | Domain |
+| `<AuthLoginForm />` | `auth/AuthLoginForm.vue` | Domain |
+
+## ✗ Không được làm
 
 ```
 # ✗ Đừng đặt domain component trong ui/
-app/components/ui/BuildingCard.vue   ← không đúng layer
+app/components/ui/NewsCard.vue
 
-# ✗ Đừng đặt business logic trong repository
-server/repositories/buildings.ts    ← chỉ query, không check permission
+# ✗ Đừng gọi Supabase business data từ page/component trực tiếp
+const { data } = await supabase.from('news').select('*')
 
-# ✗ Đừng tạo folder component ngoài app/ (Nuxt 4 tự động import từ app/)
-components/ui/UiButton.vue          ← phải là app/components/ui/
+# ✗ Đừng đặt server state (news list, detail) vào Pinia
+app/stores/news.ts với fetchList()
 
-# ✗ Đừng lồng composable logic vào Pinia cho server state
-app/stores/buildings.ts với fetchList() ← dùng composable + useFetch thay vào đó
-
-# ✗ Đừng đặt Zod schema trong server/ nếu cần dùng ở cả client
-server/validation/buildings.ts      ← đặt ở app/utils/validators/ để dùng chung
+# ✗ Đừng đặt Zod schema trong server/ — đặt ở app/utils/validators/ để dùng chung
+server/schemas/news.ts
 
 # ✗ Đừng đặt server route trong app/
-app/server/api/buildings.ts         ← phải là server/api/buildings.ts
+app/server/api/news.ts
 
 # ✗ Đừng thay schema Supabase mà không có SQL trong repo
-Dashboard-only table change          ← phải có supabase/migrations/*.sql
 ```
 
-## Nguyên tắc incremental (v0.1)
+## Nguyên tắc incremental
 
-- Chỉ tạo folder/file khi có feature thật cần dùng
-- Không tạo abstraction khi mới chỉ có 1 nơi dùng
-- Mỗi bước phải để lại kết quả chạy được hoặc kiểm chứng được
+- Chỉ tạo folder/file khi có feature thật cần dùng.
+- Mỗi phase phải để lại kết quả build + typecheck + lint pass.
+- API trước → UI sau trong mỗi phase.
