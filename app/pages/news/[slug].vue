@@ -9,15 +9,14 @@ const slug = computed(() => route.params.slug as string)
 const { article, status, recordView } = useNewsDetail(slug)
 
 onMounted(() => {
-  const stop = watch(
+  watch(
     article,
     (val) => {
       if (val?.id) {
-        recordView(val.id)
-        stop()
+        void recordView(val.id)
       }
     },
-    { immediate: true },
+    { immediate: true, once: true },
   )
 })
 </script>

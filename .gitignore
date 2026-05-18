@@ -27,3 +27,4 @@ node_modules
 # Ignore các tool folder, chỉ commit .agents/
 .codex/
 .github/skills/
+.nuxtrc
