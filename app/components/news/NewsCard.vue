@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import clsx from 'clsx'
 import type { NewsDto } from '~/types/news'
-import { formatCompactViewCount, formatNewsDate } from '~/utils/format/news'
+import { formatCompactViewCount, formatNewsDate, estimateReadTime } from '~/utils/format/news'
 
 const props = withDefaults(defineProps<{
   news: NewsDto
@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
 const wrapperClass = computed(() => clsx(
   'group block overflow-hidden transition-colors',
   {
-    'border border-border bg-white rounded-[18px]': props.variant === 'standard',
+    'border border-border bg-white rounded-lg': props.variant === 'standard',
     'bg-white': props.variant === 'lead',
     'border-b border-border bg-white pb-5 last:border-b-0': props.variant === 'compact',
   },
@@ -22,7 +22,7 @@ const wrapperClass = computed(() => clsx(
 const imageWrapClass = computed(() => clsx(
   'overflow-hidden bg-smoke-100',
   {
-    'aspect-[16/10] w-full rounded-t-[18px]': props.variant === 'standard',
+    'h-[200px] w-full overflow-hidden sm:h-[240px]': props.variant === 'standard',
     'aspect-[16/10] w-full rounded-[18px] md:aspect-[5/4] lg:aspect-[4/3]': props.variant === 'lead',
     'aspect-[4/3] w-full rounded-[18px] sm:aspect-square sm:w-28 sm:shrink-0': props.variant === 'compact',
   },
@@ -115,20 +115,21 @@ const imageWrapClass = computed(() => clsx(
           <div v-else class="h-full w-full bg-smoke-100" />
         </div>
 
-        <div class="space-y-4 p-5">
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[12px] leading-none tracking-[-0.12px] text-[#7A7A7A]">
-            <UiBadge v-if="news.category" color="primary">{{ news.category.name }}</UiBadge>
-            <span v-if="news.publishedAt">{{ formatNewsDate(news.publishedAt) }}</span>
-            <span>{{ formatCompactViewCount(news.viewCount) }}</span>
-          </div>
-
-          <h3 class="text-[24px] font-normal leading-[1.18] tracking-[0.12px] text-title transition-colors group-hover:text-blue-600 sm:text-[26px] lg:text-[28px] lg:tracking-[0.196px]">
+        <div class="flex flex-col gap-3 p-6">
+          <p class="text-[12px] font-medium leading-none tracking-[1.4px] text-sage-600 uppercase">
+            {{ news.category?.name ?? '' }}
+          </p>
+          <h3 class="font-vietnam font-semibold text-[22px] leading-[1.3] tracking-[-0.22px] text-navy-900 transition-colors group-hover:text-sage-600">
             {{ news.title }}
           </h3>
-
-          <p v-if="news.summary" class="line-clamp-3 text-[17px] leading-[1.47] tracking-apple text-[#333333]">
+          <p v-if="news.summary" class="line-clamp-3 text-[15px] leading-[1.6] text-slate-500">
             {{ news.summary }}
           </p>
+          <div class="flex items-center gap-2 pt-1 text-[13px] leading-none">
+            <span class="font-medium text-navy-900">{{ news.authorName ?? 'Biên tập viên' }}</span>
+            <span class="text-slate-400">·</span>
+            <span class="text-slate-500">Đọc {{ estimateReadTime(news.content) }} phút</span>
+          </div>
         </div>
       </article>
     </template>

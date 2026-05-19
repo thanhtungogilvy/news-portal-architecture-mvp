@@ -18,7 +18,7 @@ withDefaults(defineProps<{
     class="gap-5 md:gap-6"
     :class="columns === 'compact'
       ? 'grid lg:grid-cols-2'
-      : 'grid md:grid-cols-2 2xl:grid-cols-3'"
+      : 'grid md:grid-cols-2 lg:grid-cols-3'"
   >
     <template v-if="pending">
       <NewsCardSkeleton v-for="i in (skeletonCount ?? 6)" :key="i" :variant="variant" />

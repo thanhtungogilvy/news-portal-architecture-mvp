@@ -25,3 +25,7 @@ function formatWithSuffix(value: number, suffix: string) {
     ? `${normalized}${suffix}`
     : `${normalized.toFixed(1)}${suffix}`
 }
+
+export function estimateReadTime(content: string): number {
+  return Math.max(1, Math.ceil(content.split(/\s+/).length / 200))
+}

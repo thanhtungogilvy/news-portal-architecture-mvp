@@ -9,14 +9,6 @@ const { news: mostViewed } = useMostViewedNews();
 const { categories } = useCategoryList();
 const { news: allNews } = useNewsList({ limit: 30 });
 
-const {
-  email: newsletterEmail,
-  emailError: newsletterError,
-  loading: newsletterLoading,
-  success: newsletterSuccess,
-  submit: submitNewsletter,
-} = useNewsletterSubscribe();
-
 const hero = computed<NewsDto | null>(() => featured.value[0] ?? null);
 const trending = computed<NewsDto[]>(() => featured.value.slice(0, 3));
 const editorPicks = computed<NewsDto[]>(() => mostViewed.value.slice(0, 2));
@@ -41,10 +33,10 @@ function estimateReadTime(content: string): number {
 <template>
   <div class="bg-slate-50">
     <!-- ─── Hero ─────────────────────────────────── -->
-    <section class="flex gap-12 px-12 py-16">
+    <section class="flex flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:flex-row lg:gap-12 lg:px-12 lg:py-16">
       <!-- Hero image -->
       <div
-        class="relative h-[480px] w-[800px] shrink-0 overflow-hidden rounded-2xl"
+        class="relative h-64 w-full overflow-hidden rounded-2xl sm:h-80 lg:h-[480px] lg:w-[800px] lg:shrink-0"
       >
         <img
           v-if="hero?.thumbnailUrl"
@@ -65,7 +57,7 @@ function estimateReadTime(content: string): number {
 
       <!-- Hero content -->
       <div class="flex flex-1 flex-col justify-center gap-6">
-        <div class="inline-flex items-center rounded bg-navy-900 px-3 py-1">
+        <div class="inline-flex self-start items-center rounded bg-navy-900 px-3 py-1">
           <span
             class="text-xs font-medium leading-[1.4] tracking-[0.5px] text-white uppercase"
           >
@@ -74,7 +66,7 @@ function estimateReadTime(content: string): number {
         </div>
         <NuxtLink v-if="hero" :to="`/news/${hero.slug}`">
           <h1
-            class="font-vietnam font-bold text-[40px] leading-[1.15] text-navy-900"
+            class="font-vietnam font-bold text-2xl leading-[1.15] text-navy-900 sm:text-3xl lg:text-[40px]"
           >
             {{ hero.title }}
           </h1>
@@ -111,7 +103,7 @@ function estimateReadTime(content: string): number {
     </section>
 
     <!-- ─── Trending ──────────────────────────────── -->
-    <section class="flex flex-col gap-8 px-12 pb-16">
+    <section class="flex flex-col gap-8 px-4 pb-10 sm:px-6 sm:pb-12 lg:px-12 lg:pb-16">
       <!-- Section header -->
       <div class="flex items-center justify-between">
         <div class="flex flex-col gap-1">
@@ -128,14 +120,14 @@ function estimateReadTime(content: string): number {
         </div>
         <NuxtLink
           to="/news"
-          class="text-base leading-[1.6] text-sage-600 hover:underline"
+          class="shrink-0 whitespace-nowrap text-sm leading-[1.6] text-sage-600 hover:underline sm:text-base"
         >
           Xem tất cả →
         </NuxtLink>
       </div>
 
       <!-- Cards grid -->
-      <div class="grid grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <NuxtLink
           v-for="item in trending"
           :key="item.id"
@@ -201,7 +193,7 @@ function estimateReadTime(content: string): number {
     </section>
 
     <!-- ─── Categories ────────────────────────────── -->
-    <section class="bg-slate-100 px-12 py-16 flex flex-col gap-8">
+    <section class="bg-slate-100 px-4 py-10 flex flex-col gap-8 sm:px-6 sm:py-12 lg:px-12 lg:py-16">
       <div>
         <p
           class="text-xs font-medium leading-[1.4] tracking-[1px] text-sage-600 uppercase"
@@ -215,7 +207,7 @@ function estimateReadTime(content: string): number {
         </h2>
       </div>
 
-      <div class="grid grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div
           v-for="col in categoryColumns"
           :key="col.slug"
@@ -290,7 +282,7 @@ function estimateReadTime(content: string): number {
     </section>
 
     <!-- ─── Editor's Picks ────────────────────────── -->
-    <section class="flex flex-col gap-8 px-12 py-16">
+    <section class="flex flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12 lg:px-12 lg:py-16">
       <div class="flex items-center justify-between">
         <div class="flex flex-col gap-1">
           <p
@@ -306,13 +298,13 @@ function estimateReadTime(content: string): number {
         </div>
         <NuxtLink
           to="/news"
-          class="text-base leading-[1.6] text-sage-600 hover:underline"
+          class="shrink-0 whitespace-nowrap text-sm leading-[1.6] text-sage-600 hover:underline sm:text-base"
         >
           Xem kho lưu trữ →
         </NuxtLink>
       </div>
 
-      <div class="grid grid-cols-2 gap-8">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <NuxtLink
           v-for="item in editorPicks"
           :key="item.id"
@@ -320,7 +312,7 @@ function estimateReadTime(content: string): number {
           class="group flex flex-col gap-6"
         >
           <div
-            class="relative h-[360px] overflow-hidden rounded-lg bg-slate-200"
+            class="relative h-56 overflow-hidden rounded-lg bg-slate-200 sm:h-80 lg:h-[360px]"
           >
             <img
               v-if="item.thumbnailUrl"
@@ -345,7 +337,7 @@ function estimateReadTime(content: string): number {
               }}</span>
             </div>
             <h3
-              class="font-vietnam font-semibold text-[28px] leading-[1.25] text-navy-900 group-hover:text-sage-600 transition-colors"
+              class="font-vietnam font-semibold text-xl leading-[1.25] text-navy-900 group-hover:text-sage-600 transition-colors sm:text-2xl lg:text-[28px]"
             >
               {{ item.title }}
             </h3>
@@ -389,66 +381,5 @@ function estimateReadTime(content: string): number {
       </div>
     </section>
 
-    <!-- ─── Newsletter ─────────────────────────────── -->
-    <section
-      id="newsletter-section"
-      class="flex items-center justify-between gap-12 bg-navy-900 px-12 py-16"
-    >
-      <div class="flex flex-1 flex-col gap-4">
-        <p
-          class="text-xs font-medium leading-[1.4] tracking-[1px] text-sage-600 uppercase"
-        >
-          Bản tin hàng tuần
-        </p>
-        <h2
-          class="font-vietnam font-semibold text-2xl leading-[1.25] text-white"
-        >
-          Báo chí sức khỏe, gửi tới hộp thư bạn mỗi thứ Hai.
-        </h2>
-        <p class="text-base leading-[1.6] text-white/70">
-          Tin tức được biên tập viên chọn lọc. Không spam, không nhảm. Hủy đăng
-          ký chỉ với một cú nhấp.
-        </p>
-      </div>
-      <div class="flex w-[540px] shrink-0 flex-col gap-2">
-        <Transition name="fade" mode="out-in">
-          <p
-            v-if="newsletterSuccess"
-            class="py-3 text-base font-medium text-sage-600"
-          >
-            ✓ Đã đăng ký thành công! Chúng tôi sẽ gửi bản tin sớm nhất.
-          </p>
-          <form
-            v-else
-            class="flex items-start gap-3"
-            novalidate
-            @submit.prevent="submitNewsletter"
-          >
-            <div class="flex flex-1 flex-col gap-1.5">
-              <input
-                v-model="newsletterEmail"
-                type="email"
-                placeholder="email-cua-ban@email.com"
-                :disabled="newsletterLoading"
-                :class="[
-                  'h-12 w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-500 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sage-600 disabled:opacity-60',
-                  newsletterError ? 'border-red-400' : 'border-slate-200',
-                ]"
-              />
-              <p v-if="newsletterError" class="text-xs text-red-400">
-                {{ newsletterError }}
-              </p>
-            </div>
-            <button
-              type="submit"
-              :disabled="newsletterLoading"
-              class="flex min-h-12 shrink-0 items-center justify-center rounded-lg bg-red-500 px-7 py-3 text-base font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {{ newsletterLoading ? "Đang gửi…" : "Đăng ký" }}
-            </button>
-          </form>
-        </Transition>
-      </div>
-    </section>
   </div>
 </template>
