@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   const { items, total } = await listNews(event, result.data)
   const { page, limit } = result.data
 
+  setResponseHeader(event, 'Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
   return successResponse(items, {
     total,
     page,

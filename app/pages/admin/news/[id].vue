@@ -83,7 +83,7 @@ async function onSubmit() {
       <p v-if="articleData?.data?.title" class="mt-1 truncate text-sm text-body">{{ articleData.data.title }}</p>
     </div>
 
-    <div class="max-w-2xl">
+    <div >
       <UiSkeleton v-if="articleStatus === 'pending'" class="h-96 w-full rounded-xl" />
       <AdminNewsForm
         v-else

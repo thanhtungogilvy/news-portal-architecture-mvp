@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Server utils are auto-imported by Nitro
 All helpers in `server/utils/` SHALL be auto-imported by Nitro and available in any `server/api/`, `server/services/`, or `server/repositories/` file without explicit import.

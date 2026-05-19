@@ -11,6 +11,13 @@ export default defineConfig({
           environment: 'node',
         },
       },
+      {
+        test: {
+          name: 'dom',
+          include: ['test/dom/**/*.dom.spec.ts'],
+          environment: 'jsdom',
+        },
+      },
       await defineVitestProject({
         test: {
           name: 'nuxt',

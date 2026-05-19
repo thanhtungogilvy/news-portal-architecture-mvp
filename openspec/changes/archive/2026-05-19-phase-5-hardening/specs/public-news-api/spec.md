@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: GET /api/news returns paginated published news
 The endpoint SHALL return published news with offset/limit pagination.

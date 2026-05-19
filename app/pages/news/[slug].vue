@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DOMPurify from 'dompurify'
+import { sanitizeHtml } from '~/utils/sanitize/html'
 import { formatNewsDate, formatViewCount } from '~/utils/format/news'
 
 definePageMeta({ layout: 'default' })
@@ -8,20 +8,6 @@ const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
 const { article, status, recordView } = useNewsDetail(slug)
-
-function sanitize(html: string) {
-  if (typeof window === 'undefined') return html
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li',
-      'blockquote', 'code', 'pre', 'h2', 'h3', 'h4', 'img', 'hr',
-    ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target', 'rel'],
-    // Only allow safe URI schemes — blocks data:, javascript:, vbscript: etc.
-    ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i,
-    FORCE_BODY: true,
-  })
-}
 
 onMounted(() => {
   watch(
@@ -92,7 +78,7 @@ onMounted(() => {
       <!-- eslint-disable vue/no-v-html -->
       <div
         class="prose prose-gray max-w-none text-body leading-relaxed"
-        v-html="sanitize(article.content)"
+        v-html="sanitizeHtml(article.content)"
       />
       <!-- eslint-enable vue/no-v-html -->
     </article>

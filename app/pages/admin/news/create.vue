@@ -55,7 +55,7 @@ async function onSubmit() {
       <p class="mt-1 text-sm text-body">Write and publish a new news article.</p>
     </div>
 
-    <div class="max-w-2xl">
+    <div >
       <AdminNewsForm
         v-model="form"
         :loading="submitting"

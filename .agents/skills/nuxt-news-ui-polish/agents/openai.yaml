@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nuxt News UI Polish"
+  short_description: "Polish Nuxt news and editorial UI"
+  default_prompt: "Use $nuxt-news-ui-polish to refine a Nuxt 4 news page into a production-grade editorial interface."
