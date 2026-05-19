@@ -12,7 +12,7 @@ export async function findPublishedNews(
   opts: NewsListQuery & { categoryId?: string },
 ): Promise<{ items: NewsDto[], total: number }> {
   const client = await serverSupabaseClient(event)
-  const { page, limit, categoryId } = opts
+  const { page, limit, categoryId, q } = opts
   const offset = (page - 1) * limit
 
   let query = client
@@ -24,6 +24,10 @@ export async function findPublishedNews(
 
   if (categoryId) {
     query = query.eq('category_id', categoryId)
+  }
+
+  if (q) {
+    query = query.or(`title.ilike.%${q}%,summary.ilike.%${q}%`)
   }
 
   const { data, error, count } = await query

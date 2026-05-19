@@ -4,6 +4,7 @@ export const newsListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(9),
   category: z.string().optional(),
+  q: z.string().max(200).optional(),
 })
 
 export type NewsListQuery = z.infer<typeof newsListQuerySchema>

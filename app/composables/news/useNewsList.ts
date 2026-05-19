@@ -5,6 +5,7 @@ export interface NewsListQuery {
   page?: number
   limit?: number
   category?: string
+  q?: string
 }
 
 export function useNewsList(query: MaybeRef<NewsListQuery> = {}) {

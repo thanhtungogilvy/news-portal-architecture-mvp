@@ -5,13 +5,14 @@ const route = useRoute()
 const router = useRouter()
 
 const category = computed(() => route.query.category as string | undefined)
+const q = computed(() => (route.query.q as string) || '')
 const page = ref(Number(route.query.page ?? 1))
 
-// Reset page to 1 when category changes
-watch(category, () => { page.value = 1 })
+// Reset page to 1 when category or query changes
+watch([category, q], () => { page.value = 1 })
 
-const { news, totalPages, status } = useNewsList(
-  computed(() => ({ category: category.value, page: page.value })),
+const { news, totalPages, status, total } = useNewsList(
+  computed(() => ({ category: category.value, q: q.value || undefined, page: page.value })),
 )
 
 const { categories } = useCategoryList()
@@ -28,16 +29,24 @@ function changePage(newPage: number) {
       <CategoryNav />
     </div>
 
-    <h1 class="mb-6 text-2xl font-bold text-title">
-      {{ category
-        ? categories.find(c => c.slug === category)?.name ?? category
-        : 'Tất cả tin tức' }}
+    <h1 class="mb-2 text-2xl font-bold text-title">
+      <template v-if="q">
+        Kết quả tìm kiếm: "{{ q }}"
+      </template>
+      <template v-else>
+        {{ category
+          ? categories.find(c => c.slug === category)?.name ?? category
+          : 'Tất cả tin tức' }}
+      </template>
     </h1>
+    <p v-if="q && status !== 'pending'" class="mb-6 text-sm text-body">
+      {{ total }} bài viết
+    </p>
 
     <NewsList :items="news" :pending="status === 'pending'" />
 
     <p v-if="status !== 'pending' && news.length === 0" class="py-10 text-center text-body">
-      Chưa có bài viết nào.
+      {{ q ? `Không tìm thấy bài viết nào cho "${q}".` : 'Chưa có bài viết nào.' }}
     </p>
 
     <!-- Pagination -->

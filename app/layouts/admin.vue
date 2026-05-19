@@ -8,12 +8,14 @@ const iconMap: Record<string, string> = {
   'grid': 'IconGrid',
   'file-text': 'IconFileText',
   'tag': 'IconTag',
+  'mail': 'IconMail',
 }
 
 const navLinks = [
   { label: 'Dashboard', to: '/admin', icon: 'grid' },
   { label: 'News', to: '/admin/news', icon: 'file-text' },
   { label: 'Categories', to: '/admin/categories', icon: 'tag' },
+  { label: 'Newsletter', to: '/admin/newsletter', icon: 'mail' },
 ]
 
 function isActive(path: string) {

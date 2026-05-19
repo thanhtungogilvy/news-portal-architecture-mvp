@@ -1,6 +1,16 @@
 <script setup lang="ts">
 const route = useRoute()
+const router = useRouter()
 const { categories } = useCategoryList()
+
+const searchQuery = ref('')
+
+function submitSearch() {
+  const q = searchQuery.value.trim()
+  if (!q) return
+  router.push({ path: '/news', query: { q } })
+  searchQuery.value = ''
+}
 </script>
 
 <template>
@@ -39,14 +49,25 @@ const { categories } = useCategoryList()
 
       <!-- Right: Search + Subscribe -->
       <div class="flex items-center gap-4">
-        <div class="hidden h-[42px] w-[280px] items-center rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 lg:flex">
-          <span class="flex-1 text-sm leading-none text-slate-500">Tìm kiếm bài viết</span>
-        </div>
-        <button
+        <form class="hidden lg:flex" novalidate @submit.prevent="submitSearch">
+          <label for="header-search" class="sr-only">Tìm kiếm bài viết</label>
+          <div class="flex h-[42px] w-[280px] items-center rounded-lg border border-slate-200 bg-white px-3.5 transition-colors focus-within:border-sage-600 focus-within:ring-1 focus-within:ring-sage-600">
+            <IconSearch class="mr-2 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+            <input
+              id="header-search"
+              v-model="searchQuery"
+              type="search"
+              placeholder="Tìm kiếm bài viết"
+              class="flex-1 bg-transparent text-sm text-navy-900 placeholder:text-slate-400 outline-none"
+            >
+          </div>
+        </form>
+        <a
+          href="#newsletter-section"
           class="flex min-h-[42px] items-center justify-center rounded-lg bg-navy-900 px-[22px] py-2.5 text-sm font-medium leading-none text-white transition-opacity hover:opacity-90"
         >
           Đăng ký
-        </button>
+        </a>
       </div>
     </div>
   </header>
