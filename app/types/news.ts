@@ -12,6 +12,8 @@ export interface NewsDto {
   categoryId: string | null
   category: CategoryDto | null
   authorId: string | null
+  authorName: string | null
+  authorAvatarUrl: string | null
   status: NewsStatus
   viewCount: number
   publishedAt: string | null

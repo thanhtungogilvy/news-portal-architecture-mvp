@@ -23,6 +23,8 @@ function createArticleResponse(viewCount: number): ApiSuccess<NewsDto> {
       categoryId: null,
       category: null,
       authorId: null,
+      authorName: null,
+      authorAvatarUrl: null,
       status: 'published',
       viewCount,
       publishedAt: '2026-05-18T12:00:00+07:00',

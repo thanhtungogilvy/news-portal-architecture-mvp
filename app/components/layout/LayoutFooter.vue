@@ -1,50 +1,89 @@
+<script setup lang="ts">
+const { categories } = useCategoryList()
+</script>
+
 <template>
-  <footer class="border-t border-border bg-smoke-200">
-    <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      <div class="border-b border-border pb-8">
-        <p class="max-w-2xl text-[12px] font-semibold leading-[1.29] tracking-[-0.224px] text-[#333333]">
-          News Portal
+  <footer class="bg-navy-950">
+    <!-- Main footer content -->
+    <div class="flex items-start justify-between px-12 pt-16 pb-12">
+      <!-- Brand -->
+      <div class="flex w-[360px] flex-col gap-4">
+        <div class="flex items-center gap-2">
+          <div class="size-7 rounded-full bg-white/20" />
+          <span class="font-vietnam font-medium text-base leading-[1.35] text-white">Verdana News</span>
+        </div>
+        <p class="text-base leading-[1.6] text-white/65">
+          Báo chí độc lập về sức khỏe, thể chất và khoa học chăm sóc bản thân.
         </p>
-        <p class="mt-4 max-w-3xl text-[17px] leading-[1.47] tracking-apple text-title">
-          Một giao diện đọc bài yên tĩnh hơn, ít chrome hơn và ưu tiên headline, hình ảnh, cùng nhịp đọc dài.
-        </p>
       </div>
 
-      <div class="grid gap-8 py-8 md:grid-cols-3">
-        <div>
-          <h3 class="text-[14px] font-semibold leading-[1.29] tracking-[-0.224px] text-title">
-            Khám phá
-          </h3>
-          <div class="mt-4 flex flex-col text-[17px] leading-[2.1] tracking-apple text-[#333333]">
-            <NuxtLink to="/" class="transition-colors hover:text-blue-600">Trang chủ</NuxtLink>
-            <NuxtLink to="/news" class="transition-colors hover:text-blue-600">Tin mới</NuxtLink>
-          </div>
-        </div>
-
-        <div>
-          <h3 class="text-[14px] font-semibold leading-[1.29] tracking-[-0.224px] text-title">
-            Dòng đọc
-          </h3>
-          <p class="mt-4 max-w-sm text-[17px] leading-[1.47] tracking-apple text-[#333333]">
-            Theo dõi các câu chuyện nổi bật, chuyên mục mới nhất và bài viết dài với cùng một nhịp trình bày nhất quán.
-          </p>
-        </div>
-
-        <div>
-          <h3 class="text-[14px] font-semibold leading-[1.29] tracking-[-0.224px] text-title">
-            Điều hướng nhanh
-          </h3>
-          <div class="mt-4">
-            <NuxtLink to="/news" class="text-[17px] leading-[1.47] tracking-apple text-blue-600 transition-colors hover:text-blue-500">
-              Mở trang tin
-            </NuxtLink>
-          </div>
-        </div>
+      <!-- Sections -->
+      <div class="flex flex-col gap-3">
+        <p class="text-xs font-medium leading-[1.4] tracking-[1px] text-white/50 uppercase">Chuyên mục</p>
+        <div class="h-1" />
+        <NuxtLink
+          to="/"
+          class="text-base leading-[1.6] text-white/85 transition-colors hover:text-white"
+        >
+          Mới nhất
+        </NuxtLink>
+        <NuxtLink
+          v-for="cat in categories"
+          :key="cat.slug"
+          :to="`/categories/${cat.slug}`"
+          class="text-base leading-[1.6] text-white/85 transition-colors hover:text-white"
+        >
+          {{ cat.name }}
+        </NuxtLink>
       </div>
 
-      <div class="border-t border-border pt-5 text-[12px] leading-none tracking-[-0.12px] text-[#7A7A7A]">
-        &copy; {{ new Date().getFullYear() }} News Portal. All rights reserved.
+      <!-- Company -->
+      <div class="flex flex-col gap-3">
+        <p class="text-xs font-medium leading-[1.4] tracking-[1px] text-white/50 uppercase">Công ty</p>
+        <div class="h-1" />
+        <span
+          v-for="label in ['Giới thiệu', 'Đội ngũ biên tập', 'Tuyển dụng', 'Báo chí', 'Liên hệ']"
+          :key="label"
+          class="text-base leading-[1.6] text-white/85 cursor-pointer hover:text-white transition-colors"
+        >
+          {{ label }}
+        </span>
       </div>
+
+      <!-- Legal -->
+      <div class="flex flex-col gap-3">
+        <p class="text-xs font-medium leading-[1.4] tracking-[1px] text-white/50 uppercase">Pháp lý</p>
+        <div class="h-1" />
+        <span
+          v-for="label in ['Quyền riêng tư', 'Điều khoản sử dụng', 'Cookies', 'Trợ năng']"
+          :key="label"
+          class="text-base leading-[1.6] text-white/85 cursor-pointer hover:text-white transition-colors"
+        >
+          {{ label }}
+        </span>
+      </div>
+
+      <!-- Follow -->
+      <div class="flex flex-col gap-3">
+        <p class="text-xs font-medium leading-[1.4] tracking-[1px] text-white/50 uppercase">Theo dõi</p>
+        <div class="h-1" />
+        <span
+          v-for="label in ['Twitter / X', 'LinkedIn', 'Instagram', 'Nguồn cấp RSS']"
+          :key="label"
+          class="text-base leading-[1.6] text-white/85 cursor-pointer hover:text-white transition-colors"
+        >
+          {{ label }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="mx-12 h-px bg-white/10" />
+
+    <!-- Bottom bar -->
+    <div class="flex items-center justify-between px-12 py-6 text-sm leading-[1.5] text-white/50">
+      <p>© {{ new Date().getFullYear() }} Verdana Health Media. Bảo lưu mọi quyền.</p>
+      <p>Quy chuẩn biên tập · Đính chính · Đường dây mật báo</p>
     </div>
   </footer>
 </template>

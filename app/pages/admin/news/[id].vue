@@ -35,6 +35,8 @@ const form = ref<NewsCreateInput>({
   content: '',
   thumbnailUrl: null,
   categoryId: null,
+  authorName: null,
+  authorAvatarUrl: null,
   status: 'draft',
   publishedAt: null,
 })
@@ -49,6 +51,8 @@ watch(articleData, (val) => {
     content: a.content,
     thumbnailUrl: a.thumbnailUrl ?? null,
     categoryId: a.categoryId ?? null,
+    authorName: a.authorName ?? null,
+    authorAvatarUrl: a.authorAvatarUrl ?? null,
     status: a.status,
     publishedAt: a.publishedAt ?? null,
   }

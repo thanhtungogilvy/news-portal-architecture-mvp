@@ -13,6 +13,8 @@ export function mapNews(row: Tables<'news'>, category?: CategoryDto | null): New
     categoryId: row.category_id,
     category: category ?? null,
     authorId: row.author_id,
+    authorName: row.author_name ?? null,
+    authorAvatarUrl: row.author_avatar_url ?? null,
     status: row.status as NewsStatus,
     viewCount: row.view_count,
     publishedAt: row.published_at,

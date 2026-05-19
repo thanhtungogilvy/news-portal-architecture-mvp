@@ -146,6 +146,23 @@ function onSubmit() {
           <p v-if="errors.thumbnailUrl" class="mt-1 text-xs text-error">{{ errors.thumbnailUrl }}</p>
         </div>
 
+        <UiInput
+          label="Author name"
+          type="text"
+          placeholder="Nguyễn Văn A"
+          :model-value="modelValue.authorName ?? ''"
+          :error="errors.authorName"
+          @update:model-value="v => update('authorName', v || null)"
+        />
+        <UiInput
+          label="Author avatar URL"
+          type="text"
+          placeholder="https://…/avatar.jpg"
+          :model-value="modelValue.authorAvatarUrl ?? ''"
+          :error="errors.authorAvatarUrl"
+          @update:model-value="v => update('authorAvatarUrl', v || null)"
+        />
+
 
       </div>
     </UiCard>

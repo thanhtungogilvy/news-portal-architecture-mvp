@@ -22,6 +22,8 @@ const form = ref<NewsCreateInput>({
   content: '',
   thumbnailUrl: null,
   categoryId: null,
+  authorName: null,
+  authorAvatarUrl: null,
   status: 'draft',
   publishedAt: null,
 })

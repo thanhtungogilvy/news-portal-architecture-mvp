@@ -68,11 +68,30 @@ export default {
           800: "#020202",
           900: "#000000",
         },
+        // Verdana design tokens
+        sage: {
+          600: "#059669",
+        },
+        navy: {
+          900: "#0f172a",
+          950: "#020617",
+        },
+        slate: {
+          50: "#f8fafc",
+          100: "#f1f5f9",
+          200: "#e2e8f0",
+          300: "#cbd5e1",
+          400: "#94a3b8",
+          500: "#64748b",
+          600: "#475569",
+          900: "#0f172a",
+        },
       },
       fontFamily: {
-        sans: ["SF Pro Text", "SF Pro Display", "system-ui", "-apple-system", "sans-serif"],
-        display: ["SF Pro Display", "system-ui", "-apple-system", "sans-serif"],
-        inter: ["SF Pro Text", "SF Pro Display", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Inter", "SF Pro Text", "system-ui", "-apple-system", "sans-serif"],
+        display: ["Be Vietnam Pro", "SF Pro Display", "system-ui", "-apple-system", "sans-serif"],
+        inter: ["Inter", "SF Pro Text", "system-ui", "-apple-system", "sans-serif"],
+        vietnam: ["Be Vietnam Pro", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "Consolas", "monospace"],
       },
       boxShadow: {

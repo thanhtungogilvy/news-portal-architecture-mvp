@@ -19,6 +19,8 @@ const news: NewsDto = {
     updatedAt: '2026-05-18T10:00:00.000Z',
   },
   authorId: null,
+  authorName: null,
+  authorAvatarUrl: null,
   status: 'published',
   viewCount: 1200,
   publishedAt: '2026-05-18T12:00:00+07:00',

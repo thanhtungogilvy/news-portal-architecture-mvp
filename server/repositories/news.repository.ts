@@ -174,6 +174,8 @@ export async function insertNews(event: H3Event, input: NewsCreateInput & { auth
       thumbnail_url: input.thumbnailUrl ?? null,
       category_id: input.categoryId ?? null,
       author_id: input.authorId,
+      author_name: input.authorName ?? null,
+      author_avatar_url: input.authorAvatarUrl ?? null,
       status: input.status,
       published_at: input.publishedAt ?? null,
     })
@@ -204,6 +206,8 @@ export async function updateNews(
   if (input.content !== undefined) patch.content = input.content
   if (input.thumbnailUrl !== undefined) patch.thumbnail_url = input.thumbnailUrl
   if (input.categoryId !== undefined) patch.category_id = input.categoryId
+  if (input.authorName !== undefined) patch.author_name = input.authorName
+  if (input.authorAvatarUrl !== undefined) patch.author_avatar_url = input.authorAvatarUrl
   if (input.status !== undefined) patch.status = input.status
   if (input.publishedAt !== undefined) patch.published_at = input.publishedAt
 

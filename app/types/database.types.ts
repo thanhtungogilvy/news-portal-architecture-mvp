@@ -40,7 +40,9 @@ export type Database = {
       }
       news: {
         Row: {
+          author_avatar_url: string | null
           author_id: string | null
+          author_name: string | null
           category_id: string | null
           content: string
           created_at: string
@@ -55,7 +57,9 @@ export type Database = {
           view_count: number
         }
         Insert: {
+          author_avatar_url?: string | null
           author_id?: string | null
+          author_name?: string | null
           category_id?: string | null
           content: string
           created_at?: string
@@ -70,7 +74,9 @@ export type Database = {
           view_count?: number
         }
         Update: {
+          author_avatar_url?: string | null
           author_id?: string | null
+          author_name?: string | null
           category_id?: string | null
           content?: string
           created_at?: string

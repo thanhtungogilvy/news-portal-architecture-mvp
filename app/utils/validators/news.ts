@@ -28,6 +28,8 @@ export const newsCreateSchema = z.object({
   content: z.string().min(1),
   thumbnailUrl: z.string().url().nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
+  authorName: z.string().max(200).nullable().optional(),
+  authorAvatarUrl: z.string().url().nullable().optional(),
   status: z.enum(['draft', 'published', 'archived']).default('draft'),
   publishedAt: z.string().datetime({ offset: true }).nullable().optional(),
 })

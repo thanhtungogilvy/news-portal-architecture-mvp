@@ -86,10 +86,21 @@ function daysAgo(n) {
   return d.toISOString()
 }
 
+// One author profile per category — used as denormalised display name + avatar on each article.
+const AUTHOR_BY_CATEGORY = {
+  'cong-nghe':  { author_name: 'Nguyễn Minh Khoa',  author_avatar_url: 'https://i.pravatar.cc/150?u=minhkhoa' },
+  'kinh-doanh': { author_name: 'Lê Thu Hương',       author_avatar_url: 'https://i.pravatar.cc/150?u=thuhuong' },
+  'the-thao':   { author_name: 'Trần Đức Thịnh',     author_avatar_url: 'https://i.pravatar.cc/150?u=ducthinh' },
+  'giai-tri':   { author_name: 'Phạm Mai Linh',      author_avatar_url: 'https://i.pravatar.cc/150?u=mailinh' },
+  'khoa-hoc':   { author_name: 'Hoàng Văn Nam',      author_avatar_url: 'https://i.pravatar.cc/150?u=vannam' },
+}
+
 function buildArticles(cats, authorId, imgs) {
   const img = i => imgs[i % imgs.length]
+  // reverse map: uuid → slug (to look up author profile after building articles)
+  const slugById = Object.fromEntries(Object.entries(cats).map(([slug, id]) => [id, slug]))
 
-  return [
+  const articles = [
     // ── Công nghệ (8 bài) ──────────────────────────────────────────────────
     {
       title: 'OpenAI ra mắt GPT-5 với khả năng lý luận vượt trội',
@@ -460,6 +471,13 @@ function buildArticles(cats, authorId, imgs) {
       published_at: daysAgo(29),
     },
   ]
+
+  // Attach author_name + author_avatar_url based on category slug
+  return articles.map((article) => {
+    const catSlug = slugById[article.category_id]
+    const author = AUTHOR_BY_CATEGORY[catSlug] ?? { author_name: null, author_avatar_url: null }
+    return { ...article, ...author }
+  })
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -491,8 +509,8 @@ async function main() {
   const BATCH = 10
   for (let i = 0; i < articles.length; i += BATCH) {
     const batch = articles.slice(i, i + BATCH)
-    const { error } = await supabase.from('news').insert(batch)
-    if (error) throw new Error(`Insert batch ${i / BATCH + 1}: ${error.message}`)
+    const { error } = await supabase.from('news').upsert(batch, { onConflict: 'slug' })
+    if (error) throw new Error(`Upsert batch ${i / BATCH + 1}: ${error.message}`)
     console.log(`  ✓ Batch ${i / BATCH + 1} inserted (${batch.length} articles)`)
   }
 
