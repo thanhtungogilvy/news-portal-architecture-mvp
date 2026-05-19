@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { sanitizeHtml } from '~/utils/sanitize/html'
-import { formatNewsDate, formatViewCount } from '~/utils/format/news'
+import { formatCompactViewCount, estimateReadTime } from '~/utils/format/news'
+import dayjs from 'dayjs'
 
 definePageMeta({ layout: 'default' })
 
@@ -13,113 +14,207 @@ onMounted(() => {
   watch(
     article,
     (val) => {
-      if (val?.id) {
-        void recordView(val.id)
-      }
+      if (val?.id) void recordView(val.id)
     },
     { immediate: true, once: true },
   )
+})
+
+const relatedQuery = computed(() => ({
+  category: article.value?.category?.slug ?? undefined,
+  limit: 4,
+}))
+const { news: relatedAll } = useNewsList(relatedQuery)
+const related = computed(() =>
+  relatedAll.value.filter(n => n.slug !== slug.value).slice(0, 3),
+)
+
+function formatLongDate(iso: string | null) {
+  if (!iso) return ''
+  return dayjs(iso).format('D [tháng] M, YYYY')
+}
+
+useHead({
+  title: () => article.value?.title ?? 'Bài viết',
+  meta: [{ name: 'description', content: () => article.value?.summary ?? '' }],
 })
 </script>
 
 <template>
   <div class="bg-white">
-    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <!-- Loading -->
-      <template v-if="status === 'pending'">
-        <div class="mx-auto max-w-4xl py-10 sm:py-14 lg:py-16">
-          <UiSkeleton class="h-6 w-28 rounded-full" />
-          <UiSkeleton class="mt-5 h-14 w-full max-w-4xl sm:h-20" />
-          <UiSkeleton class="mt-3 h-8 w-full max-w-3xl" />
-          <div class="mt-6 flex flex-wrap items-center gap-3">
-            <UiSkeleton class="h-5 w-32" />
-            <UiSkeleton class="h-5 w-32" />
-            <UiSkeleton class="h-5 w-28" />
-          </div>
-          <UiSkeleton class="mt-10 aspect-[16/9] w-full rounded-[18px]" />
-          <div class="mx-auto mt-12 max-w-3xl space-y-4">
-            <UiSkeleton class="h-5 w-full" />
-            <UiSkeleton class="h-5 w-full" />
-            <UiSkeleton class="h-5 w-11/12" />
-            <UiSkeleton class="h-5 w-full" />
-            <UiSkeleton class="h-5 w-4/5" />
+    <!-- ─── Loading ─────────────────────────────────────── -->
+    <template v-if="status === 'pending'">
+      <div class="px-4 pb-10 pt-16 sm:px-6 sm:pt-20 lg:px-12 lg:pt-24">
+        <div class="mx-auto max-w-[800px] space-y-5">
+          <UiSkeleton class="h-4 w-48" />
+          <UiSkeleton class="h-4 w-32" />
+          <UiSkeleton class="mt-1 h-16 w-full sm:h-24" />
+          <UiSkeleton class="h-7 w-full max-w-2xl" />
+          <UiSkeleton class="h-7 w-3/4" />
+          <div class="flex items-center gap-3 pt-2">
+            <UiSkeleton class="size-10 shrink-0 rounded-full" />
+            <div class="space-y-2">
+              <UiSkeleton class="h-3.5 w-28" />
+              <UiSkeleton class="h-3 w-52" />
+            </div>
           </div>
         </div>
-      </template>
+      </div>
+      <div class="px-4 sm:px-6 lg:px-12">
+        <UiSkeleton class="h-[280px] w-full rounded-xl sm:h-[400px] lg:h-[560px]" />
+      </div>
+      <div class="mx-auto max-w-[720px] space-y-4 px-4 py-12 sm:px-6 lg:px-12">
+        <UiSkeleton class="h-5 w-full" />
+        <UiSkeleton class="h-5 w-full" />
+        <UiSkeleton class="h-5 w-11/12" />
+        <UiSkeleton class="h-5 w-full" />
+        <UiSkeleton class="h-5 w-4/5" />
+      </div>
+    </template>
 
-    <!-- Not found -->
-      <div
-        v-else-if="!article"
-        class="mx-auto my-12 max-w-4xl rounded-[18px] border border-dashed border-border bg-smoke-200 px-6 py-16 text-center"
-      >
-        <p class="text-[34px] font-semibold leading-[1.1] text-title">
+    <!-- ─── Not Found ──────────────────────────────────── -->
+    <div
+      v-else-if="!article"
+      class="px-4 py-24 sm:px-6 lg:px-12"
+    >
+      <div class="mx-auto max-w-[800px] rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-20 text-center">
+        <p class="font-vietnam font-bold text-[28px] text-navy-900 sm:text-[36px]">
           Không tìm thấy bài viết.
         </p>
-        <p class="mt-3 text-[17px] leading-[1.47] tracking-apple text-[#333333]">
+        <p class="mt-3 text-[17px] leading-[1.6] text-slate-500">
           Bài viết có thể đã bị gỡ xuống, chưa xuất bản hoặc đường dẫn không còn hợp lệ.
         </p>
-        <NuxtLink to="/news" class="mt-6 inline-flex">
+        <NuxtLink to="/news" class="mt-8 inline-flex">
           <UiButton variant="secondary">Quay lại bản tin</UiButton>
         </NuxtLink>
       </div>
+    </div>
 
-    <!-- Article -->
-      <article v-else class="py-10 sm:py-14 lg:py-16">
-        <header class="mx-auto max-w-4xl border-b border-border pb-10">
-          <div class="flex flex-wrap items-center gap-3">
-            <UiBadge v-if="article.category" color="primary">
-              {{ article.category.name }}
-            </UiBadge>
-            <div v-if="article.publishedAt" class="inline-flex items-center gap-1.5 text-[14px] leading-[1.43] tracking-[-0.224px] text-[#7A7A7A]">
-              <IconCalendar class="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{{ formatNewsDate(article.publishedAt) }}</span>
-            </div>
-            <div class="inline-flex items-center gap-1.5 text-[14px] leading-[1.43] tracking-[-0.224px] text-[#7A7A7A]">
-              <IconEye class="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{{ formatViewCount(article.viewCount) }} lượt xem</span>
-            </div>
-          </div>
+    <!-- ─── Article ────────────────────────────────────── -->
+    <template v-else>
+      <!-- Article Header -->
+      <div class="px-4 pb-10 pt-16 sm:px-6 sm:pb-12 sm:pt-20 lg:px-12 lg:pb-12 lg:pt-24">
+        <div class="mx-auto max-w-[800px]">
+          <!-- Breadcrumb -->
+          <nav class="flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-slate-400" aria-label="Breadcrumb">
+            <NuxtLink to="/" class="transition-colors hover:text-navy-900">Trang chủ</NuxtLink>
+            <template v-if="article.category">
+              <span aria-hidden="true">›</span>
+              <NuxtLink :to="`/categories/${article.category.slug}`" class="transition-colors hover:text-navy-900">
+                {{ article.category.name }}
+              </NuxtLink>
+            </template>
+          </nav>
 
-          <h1 class="mt-5 text-[32px] font-semibold leading-[1.08] tracking-[-0.2px] text-title sm:text-[42px] md:text-[48px] lg:text-[56px] lg:tracking-apple-tight">
+          <!-- Category label -->
+          <p class="mt-4 text-[13px] font-medium uppercase tracking-[1.6px] text-sage-600">
+            {{ article.category?.name ?? 'BÀI VIẾT' }}
+          </p>
+
+          <!-- Title -->
+          <h1 class="mt-3 font-vietnam font-bold text-[36px] leading-[1.1] tracking-[-0.5px] text-navy-900 sm:text-[44px] lg:text-[56px] lg:tracking-[-1.12px]">
             {{ article.title }}
           </h1>
 
-          <p v-if="article.summary" class="mt-5 max-w-3xl text-[20px] leading-[1.55] text-title/88 sm:text-[24px] sm:font-light md:text-[26px] lg:text-[28px] lg:leading-[1.5]">
+          <!-- Summary -->
+          <p v-if="article.summary" class="mt-4 text-[18px] leading-[1.6] text-slate-500 sm:text-[20px] lg:text-[22px]">
             {{ article.summary }}
           </p>
-        </header>
 
-        <figure v-if="article.thumbnailUrl" class="mx-auto mt-8 max-w-5xl sm:mt-10">
-          <img
-            :src="article.thumbnailUrl"
-            :alt="article.title"
-            class="aspect-[16/9] w-full rounded-[18px] object-cover shadow-product"
-            loading="eager"
-          >
-        </figure>
+          <!-- Meta -->
+          <div class="mt-6 flex items-center gap-3 pt-2">
+            <div class="size-10 shrink-0 overflow-hidden rounded-full bg-slate-200">
+              <img
+                v-if="article.authorAvatarUrl"
+                :src="article.authorAvatarUrl"
+                :alt="article.authorName ?? 'Tác giả'"
+                class="size-full object-cover"
+              />
+              <div
+                v-else
+                class="flex size-full items-center justify-center bg-[#dbc7b5] text-[15px] font-semibold text-white"
+              >
+                {{ (article.authorName ?? 'B')[0]?.toUpperCase() }}
+              </div>
+            </div>
+            <div>
+              <p class="text-[14px] font-medium text-navy-900">
+                {{ article.authorName ?? 'Biên tập viên' }}
+              </p>
+              <p class="mt-0.5 text-[13px] text-slate-400">
+                {{ formatLongDate(article.publishedAt) }}
+                · Đọc {{ estimateReadTime(article.content) }} phút
+                · {{ formatCompactViewCount(article.viewCount) }} lượt xem
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- Hero Image -->
+      <div v-if="article.thumbnailUrl" class="px-4 pb-6 sm:px-6 lg:px-12">
+        <img
+          :src="article.thumbnailUrl"
+          :alt="article.title"
+          class="h-[280px] w-full rounded-xl object-cover sm:h-[400px] lg:h-[560px]"
+          loading="eager"
+        />
+      </div>
+
+      <!-- Article Body -->
+      <div class="px-4 pb-20 pt-10 sm:px-6 sm:pt-12 lg:px-12 lg:pt-14">
         <!-- eslint-disable vue/no-v-html -->
         <div
-          class="article-body mx-auto mt-10 max-w-3xl text-title sm:mt-12"
+          class="article-body mx-auto max-w-[720px]"
           v-html="sanitizeHtml(article.content)"
         />
         <!-- eslint-enable vue/no-v-html -->
+      </div>
 
-        <footer class="mx-auto mt-16 max-w-3xl border-t border-border pt-8">
-          <p class="text-[14px] leading-[1.43] tracking-[-0.224px] text-[#7A7A7A]">
-            Tiếp tục theo dõi các bài viết mới trong cùng một nhịp đọc tối giản và dễ tiếp cận hơn.
+      <!-- Related Articles -->
+      <div v-if="related.length > 0" class="bg-slate-50 px-4 pb-24 pt-20 sm:px-6 lg:px-12">
+        <!-- Section Header -->
+        <div class="mb-8">
+          <p class="text-[13px] font-medium uppercase tracking-[1.6px] text-slate-400">
+            BÀI LIÊN QUAN
           </p>
-          <div class="mt-5 flex flex-wrap gap-3">
-            <NuxtLink to="/news" class="inline-flex">
-              <UiButton>Tất cả bài viết</UiButton>
-            </NuxtLink>
-            <NuxtLink v-if="article.category" :to="`/categories/${article.category.slug}`" class="inline-flex">
-              <UiButton variant="secondary">{{ article.category.name }}</UiButton>
-            </NuxtLink>
-          </div>
-        </footer>
-      </article>
-    </div>
+          <p class="mt-2 font-vietnam font-bold text-[28px] leading-[1.2] tracking-[-0.48px] text-navy-900 sm:text-[32px]">
+            Đọc thêm về {{ article.category?.name?.toLowerCase() ?? 'chủ đề này' }}
+          </p>
+        </div>
+
+        <!-- Cards -->
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <NuxtLink
+            v-for="item in related"
+            :key="item.id"
+            :to="`/news/${item.slug}`"
+            class="group flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-shadow hover:shadow-md"
+          >
+            <div class="h-[200px] shrink-0 overflow-hidden bg-slate-100">
+              <img
+                v-if="item.thumbnailUrl"
+                :src="item.thumbnailUrl"
+                :alt="item.title"
+                class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+              />
+            </div>
+            <div class="flex flex-col gap-3 px-6 pb-6 pt-5">
+              <p class="text-[12px] font-medium uppercase tracking-[1.4px] text-sage-600">
+                {{ item.category?.name ?? 'Tin tức' }}
+              </p>
+              <p class="font-vietnam font-semibold text-[20px] leading-[1.3] tracking-[-0.2px] text-navy-900 transition-colors group-hover:text-sage-600">
+                {{ item.title }}
+              </p>
+              <p class="text-[13px] text-slate-400">
+                Đọc {{ estimateReadTime(item.content) }} phút
+              </p>
+            </div>
+          </NuxtLink>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -127,127 +222,144 @@ onMounted(() => {
 .article-body :deep(h2),
 .article-body :deep(h3),
 .article-body :deep(h4) {
-  color: #1d1d1f;
-  font-weight: 600;
-  letter-spacing: -0.374px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .article-body :deep(h2) {
   margin-top: 3rem;
   margin-bottom: 1rem;
-  font-size: 1.75rem;
-  line-height: 1.2;
+  font-size: 2rem;
+  line-height: 1.25;
+  letter-spacing: -0.48px;
 }
 
 .article-body :deep(h3) {
   margin-top: 2.5rem;
   margin-bottom: 0.875rem;
   font-size: 1.5rem;
-  line-height: 1.25;
+  line-height: 1.3;
+  letter-spacing: -0.24px;
 }
 
 .article-body :deep(h4) {
   margin-top: 2rem;
   margin-bottom: 0.75rem;
-  font-size: 1.2rem;
-  line-height: 1.3;
+  font-size: 1.125rem;
+  line-height: 1.35;
 }
 
-.article-body :deep(p),
-.article-body :deep(ul),
-.article-body :deep(ol),
-.article-body :deep(blockquote),
-.article-body :deep(pre) {
-  margin-top: 1.125rem;
-  margin-bottom: 1.125rem;
-  font-size: 16px;
-  line-height: 1.8;
-  letter-spacing: -0.374px;
+.article-body :deep(p) {
+  margin-top: 1.5rem;
+  margin-bottom: 0;
+  font-size: 18px;
+  line-height: 1.75;
+  color: #1d293b;
+}
+
+.article-body :deep(p:first-child) {
+  margin-top: 0;
 }
 
 .article-body :deep(ul),
 .article-body :deep(ol) {
-  padding-left: 1.4rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+  font-size: 18px;
+  line-height: 1.75;
+  color: #1d293b;
 }
 
 .article-body :deep(ul) {
   list-style: disc;
 }
 
+.article-body :deep(ul li::marker) {
+  color: #059669;
+}
+
 .article-body :deep(ol) {
   list-style: decimal;
 }
 
-.article-body :deep(li + li) {
-  margin-top: 0.625rem;
+.article-body :deep(li) {
+  margin-top: 0.5rem;
 }
 
 .article-body :deep(blockquote) {
-  border-left: 3px solid #0066cc;
-  background: #f5f5f7;
-  padding: 1.25rem 1.5rem;
-  color: #1d1d1f;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  border-left: 4px solid #059669;
+  padding: 0.5rem 0 0.5rem 2rem;
 }
 
-.article-body :deep(a) {
-  color: #0066cc;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+.article-body :deep(blockquote p) {
+  margin-top: 0;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.5;
+  letter-spacing: -0.11px;
+  color: #0f172a;
+}
+
+.article-body :deep(blockquote cite),
+.article-body :deep(blockquote footer) {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 14px;
+  color: #64748b;
+  font-style: normal;
 }
 
 .article-body :deep(pre) {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
   overflow-x: auto;
-  border-radius: 18px;
-  background: #272729;
+  border-radius: 8px;
+  background: #f1f5f9;
   padding: 1.25rem 1.5rem;
-  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .article-body :deep(code) {
-  border-radius: 8px;
-  background: #f5f5f7;
-  padding: 0.15rem 0.4rem;
-  font-size: 0.95em;
+  font-size: 0.875em;
+  background: #f1f5f9;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  color: #0f172a;
 }
 
 .article-body :deep(pre code) {
-  background: transparent;
+  background: none;
   padding: 0;
-  color: inherit;
+}
+
+.article-body :deep(a) {
+  color: #059669;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.article-body :deep(a:hover) {
+  color: #047857;
 }
 
 .article-body :deep(img) {
   margin-top: 2rem;
   margin-bottom: 2rem;
   width: 100%;
-  border-radius: 18px;
+  border-radius: 8px;
   object-fit: cover;
-  box-shadow: 3px 5px 30px rgba(0, 0, 0, 0.22);
 }
 
-@media (min-width: 640px) {
-  .article-body :deep(h2) {
-    margin-top: 3.5rem;
-    font-size: 2.125rem;
-  }
-
-  .article-body :deep(h3) {
-    margin-top: 2.75rem;
-    font-size: 1.75rem;
-  }
-
-  .article-body :deep(h4) {
-    font-size: 1.3125rem;
-  }
-
-  .article-body :deep(p),
-  .article-body :deep(ul),
-  .article-body :deep(ol),
-  .article-body :deep(blockquote),
-  .article-body :deep(pre) {
-    font-size: 17px;
-    line-height: 1.85;
-  }
+.article-body :deep(hr) {
+  margin-top: 2.5rem;
+  margin-bottom: 2.5rem;
+  border: none;
+  border-top: 1px solid #e2e8f0;
 }
 </style>

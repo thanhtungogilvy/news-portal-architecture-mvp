@@ -38,7 +38,7 @@ const { data, status, error, refresh, clear } = await useFetch('/api/posts')
 ```ts
 const { data } = await useFetch('/api/posts', {
   // Query parameters
-  query: { page: 1, limit: 10 },
+  query: { page: 1, limit: 12 },
   // Request body (for POST/PUT)
   body: { title: 'New Post' },
   // HTTP method

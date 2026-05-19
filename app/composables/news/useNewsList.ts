@@ -12,7 +12,7 @@ export function useNewsList(query: MaybeRef<NewsListQuery> = {}) {
   const { data, status, error, refresh } = useFetch<ApiSuccess<NewsDto[]>>('/api/news', {
     key: () => `news-list-${JSON.stringify(toValue(query))}`,
     query: computed(() => toValue(query)),
-    default: () => ({ data: [], meta: { total: 0, page: 1, limit: 9, totalPages: 0 } }),
+    default: () => ({ data: [], meta: { total: 0, page: 1, limit: 12, totalPages: 0 } }),
   })
 
   const news = computed(() => data.value?.data ?? [])

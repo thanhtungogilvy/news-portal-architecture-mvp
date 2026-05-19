@@ -45,7 +45,7 @@ onUnmounted(() => { scrollLocked.value = false })
       <!-- Left: Logo + Desktop Nav -->
       <div class="flex items-center gap-8 lg:gap-12">
         <NuxtLink to="/" class="flex items-center gap-2 shrink-0" @click="closeMobileMenu">
-          <div class="size-7 rounded-full bg-navy-900" />
+          <IconLogoMark class="size-7 text-navy-900" aria-hidden="true" />
           <span class="font-vietnam font-medium text-base leading-[1.35] text-navy-900">
             Verdana News
           </span>

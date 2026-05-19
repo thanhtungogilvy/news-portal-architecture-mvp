@@ -64,7 +64,7 @@ const {
       <!-- Brand -->
       <div class="col-span-2 flex flex-col gap-4 lg:col-span-1">
         <div class="flex items-center gap-2">
-          <div class="size-7 rounded-full bg-white/20" />
+          <IconLogoMark class="size-7 text-white/20" aria-hidden="true" />
           <span class="font-vietnam font-medium text-base leading-[1.35] text-white">Verdana News</span>
         </div>
         <p class="text-base leading-[1.6] text-white/65">
