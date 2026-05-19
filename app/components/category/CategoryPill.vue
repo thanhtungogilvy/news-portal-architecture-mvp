@@ -7,14 +7,18 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const isActive = computed(() => route.path === '/news' && route.query.category === props.category.slug)
+const isActive = computed(() => {
+  if (route.path === '/news') return route.query.category === props.category.slug
+  if (route.path.startsWith('/categories/')) return route.params.slug === props.category.slug
+  return false
+})
 
 const pillClass = computed(() =>
   clsx(
-    'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors',
+    'inline-flex min-h-[44px] items-center rounded-full border px-4 text-[14px] leading-[1.29] tracking-[-0.224px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
     isActive.value
-      ? 'bg-blue text-white'
-      : 'bg-white text-body border border-border hover:border-blue hover:text-blue',
+      ? 'border-blue-600 bg-blue-600 text-white'
+      : 'border-border bg-white text-title hover:border-blue-600 hover:text-blue-600',
   ),
 )
 </script>

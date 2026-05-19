@@ -10,20 +10,20 @@ const props = defineProps<{
 
 const buttonClass = computed(() =>
   clsx(
-    'inline-flex items-center justify-center font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+    'inline-flex items-center justify-center font-normal transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 active:scale-95',
     {
-      'px-3 py-1.5 text-xs': props.size === 'sm',
-      'px-4 py-2 text-sm': !props.size || props.size === 'md',
-      'px-5 py-2.5 text-base': props.size === 'lg',
+      'min-h-[32px] rounded-full px-3 text-xs tracking-[-0.12px]': props.size === 'sm',
+      'min-h-[44px] rounded-full px-[22px] text-[17px] leading-[1.47] tracking-apple': !props.size || props.size === 'md',
+      'min-h-[48px] rounded-full px-7 text-[18px] font-light leading-none': props.size === 'lg',
     },
     {
-      'bg-blue text-white hover:bg-blue-600 focus-visible:ring-blue-500':
+      'bg-blue-600 text-white hover:bg-blue-500':
         !props.variant || props.variant === 'primary',
-      'bg-white text-title border border-border hover:bg-smoke-100 focus-visible:ring-blue-400':
+      'border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50':
         props.variant === 'secondary',
-      'text-body hover:text-title hover:bg-smoke-100 focus-visible:ring-blue-400':
+      'rounded-md px-4 text-[14px] leading-[1.29] tracking-[-0.224px] text-title hover:bg-black/5':
         props.variant === 'ghost',
-      'bg-error text-white hover:bg-error-dark focus-visible:ring-error':
+      'rounded-full bg-error text-white hover:bg-error-dark':
         props.variant === 'destructive',
     },
     {

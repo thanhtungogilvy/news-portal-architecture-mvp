@@ -30,10 +30,10 @@ const pages = computed(() => {
 </script>
 
 <template>
-  <nav class="flex items-center justify-center gap-1" aria-label="Pagination">
+  <nav class="flex flex-wrap items-center justify-center gap-1.5" aria-label="Pagination">
     <!-- Prev -->
     <button
-      class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white text-sm text-body transition-colors hover:border-blue hover:text-blue disabled:cursor-not-allowed disabled:opacity-40"
+      class="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-border bg-white px-3 text-[17px] text-title transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
       :disabled="currentPage <= 1"
       aria-label="Previous page"
       @click="emit('change', currentPage - 1)"
@@ -45,16 +45,16 @@ const pages = computed(() => {
     <template v-for="p in pages" :key="p">
       <span
         v-if="p === '...'"
-        class="inline-flex h-8 w-8 items-center justify-center text-sm text-body"
+        class="inline-flex h-11 min-w-11 items-center justify-center text-sm text-body"
       >
         …
       </span>
       <button
         v-else
-        class="inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm font-medium transition-colors"
+        class="inline-flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-[15px] transition-colors"
         :class="p === currentPage
-          ? 'border-blue bg-blue text-white'
-          : 'border-border bg-white text-body hover:border-blue hover:text-blue'"
+          ? 'border-blue-600 bg-blue-600 text-white'
+          : 'border-border bg-white text-title hover:border-blue-600 hover:text-blue-600'"
         :aria-current="p === currentPage ? 'page' : undefined"
         @click="emit('change', p)"
       >
@@ -64,7 +64,7 @@ const pages = computed(() => {
 
     <!-- Next -->
     <button
-      class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-white text-sm text-body transition-colors hover:border-blue hover:text-blue disabled:cursor-not-allowed disabled:opacity-40"
+      class="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-border bg-white px-3 text-[17px] text-title transition-colors hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
       :disabled="currentPage >= totalPages"
       aria-label="Next page"
       @click="emit('change', currentPage + 1)"
