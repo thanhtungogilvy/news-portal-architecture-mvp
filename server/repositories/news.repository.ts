@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { serverSupabaseClient, serverSupabaseServiceRole } from '#supabase/server'
 import { mapNews } from '~/utils/mappers/news'
 import { mapCategory } from '~/utils/mappers/category'
-import type { NewsDto } from '~/types/news'
+import type { NewsDto, NewsAdjacentDto } from '~/types/news'
 import type { NewsListQuery, AdminNewsListQuery, NewsCreateInput, NewsPatchInput } from '~/utils/validators/news'
 
 const NEWS_WITH_CATEGORY = '*, categories(*)' as const
@@ -118,6 +118,97 @@ export async function incrementViewCount(event: H3Event, id: string): Promise<vo
 function mapRow(row: Record<string, unknown>): NewsDto {
   const category = row.categories ? mapCategory(row.categories as Parameters<typeof mapCategory>[0]) : null
   return mapNews(row as Parameters<typeof mapNews>[0], category)
+}
+
+function mapAdjacentRow(row: Record<string, unknown>): NewsAdjacentDto {
+  const category = row.categories ? mapCategory(row.categories as Parameters<typeof mapCategory>[0]) : null
+  const news = mapNews(row as Parameters<typeof mapNews>[0], category)
+
+  return {
+    id: news.id,
+    title: news.title,
+    slug: news.slug,
+    thumbnailUrl: news.thumbnailUrl,
+    category: news.category,
+    publishedAt: news.publishedAt,
+  }
+}
+
+async function findAdjacentByPublishedAt(
+  event: H3Event,
+  currentNewsId: string,
+  publishedAt: string,
+  direction: 'newer' | 'older',
+): Promise<NewsAdjacentDto | null> {
+  const client = await serverSupabaseClient(event)
+  const isNewer = direction === 'newer'
+
+  let query = client
+    .from('news')
+    .select(NEWS_WITH_CATEGORY)
+    .eq('status', 'published')
+    .neq('id', currentNewsId)
+    .order('published_at', { ascending: isNewer })
+    .limit(1)
+
+  query = isNewer
+    ? query.gt('published_at', publishedAt)
+    : query.lt('published_at', publishedAt)
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error) {
+    throw createApiError(500, 'INTERNAL_ERROR', `Failed to fetch ${direction} news article`)
+  }
+
+  if (!data) return null
+  return mapAdjacentRow(data as Record<string, unknown>)
+}
+
+async function findAdjacentByCreatedAt(
+  event: H3Event,
+  currentNewsId: string,
+  createdAt: string,
+  direction: 'newer' | 'older',
+): Promise<NewsAdjacentDto | null> {
+  const client = await serverSupabaseClient(event)
+  const isNewer = direction === 'newer'
+
+  let query = client
+    .from('news')
+    .select(NEWS_WITH_CATEGORY)
+    .eq('status', 'published')
+    .neq('id', currentNewsId)
+    .order('created_at', { ascending: isNewer })
+    .limit(1)
+
+  query = isNewer
+    ? query.gt('created_at', createdAt)
+    : query.lt('created_at', createdAt)
+
+  const { data, error } = await query.maybeSingle()
+
+  if (error) {
+    throw createApiError(500, 'INTERNAL_ERROR', `Failed to fetch ${direction} news article`)
+  }
+
+  if (!data) return null
+  return mapAdjacentRow(data as Record<string, unknown>)
+}
+
+export async function findAdjacentPublishedNews(
+  event: H3Event,
+  currentNews: NewsDto,
+): Promise<{ newer: NewsAdjacentDto | null, older: NewsAdjacentDto | null }> {
+  const cursor = currentNews.publishedAt ?? currentNews.createdAt
+  const finder = currentNews.publishedAt ? findAdjacentByPublishedAt : findAdjacentByCreatedAt
+
+  const [newer, older] = await Promise.all([
+    finder(event, currentNews.id, cursor, 'newer'),
+    finder(event, currentNews.id, cursor, 'older'),
+  ])
+
+  return { newer, older }
 }
 
 export async function findAdminNews(

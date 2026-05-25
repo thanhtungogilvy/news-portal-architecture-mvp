@@ -57,6 +57,7 @@ watch(
 const related = computed(() =>
   relatedAll.value.filter(n => n.slug !== slug.value).slice(0, 3),
 )
+const navigation = computed(() => article.value?.navigation ?? { newer: null, older: null })
 
 function formatLongDate(iso: string | null) {
   if (!iso) return ''
@@ -198,6 +199,57 @@ useHead({
           v-html="sanitizeHtml(article.content)"
         />
         <!-- eslint-enable vue/no-v-html -->
+      </div>
+
+      <!-- Adjacent Navigation -->
+      <div
+        v-if="navigation.newer || navigation.older"
+        class="border-y border-slate-200 bg-white px-4 py-10 sm:px-6 lg:px-12"
+      >
+        <div class="mx-auto grid max-w-[960px] gap-4 md:grid-cols-2">
+          <NuxtLink
+            v-if="navigation.newer"
+            :to="`/news/${navigation.newer.slug}`"
+            class="group flex min-h-[148px] flex-col justify-between rounded-xl border border-slate-200 bg-slate-50 px-6 py-5 transition-colors hover:border-sage-300 hover:bg-white"
+          >
+            <div>
+              <p class="text-[12px] font-medium uppercase tracking-[1.4px] text-slate-400">
+                Newer Post
+              </p>
+              <p class="mt-3 font-vietnam font-semibold text-[22px] leading-[1.3] tracking-[-0.24px] text-navy-900 transition-colors group-hover:text-sage-600">
+                {{ navigation.newer.title }}
+              </p>
+            </div>
+            <p class="mt-4 text-[13px] text-slate-500">
+              {{ navigation.newer.category?.name ?? 'Tin tức' }}
+              <span v-if="navigation.newer.publishedAt">
+                · {{ formatLongDate(navigation.newer.publishedAt) }}
+              </span>
+            </p>
+          </NuxtLink>
+          <div v-else class="hidden md:block" />
+
+          <NuxtLink
+            v-if="navigation.older"
+            :to="`/news/${navigation.older.slug}`"
+            class="group flex min-h-[148px] flex-col justify-between rounded-xl border border-slate-200 bg-slate-50 px-6 py-5 transition-colors hover:border-sage-300 hover:bg-white md:text-right"
+          >
+            <div>
+              <p class="text-[12px] font-medium uppercase tracking-[1.4px] text-slate-400">
+                Older Post
+              </p>
+              <p class="mt-3 font-vietnam font-semibold text-[22px] leading-[1.3] tracking-[-0.24px] text-navy-900 transition-colors group-hover:text-sage-600">
+                {{ navigation.older.title }}
+              </p>
+            </div>
+            <p class="mt-4 text-[13px] text-slate-500">
+              {{ navigation.older.category?.name ?? 'Tin tức' }}
+              <span v-if="navigation.older.publishedAt">
+                · {{ formatLongDate(navigation.older.publishedAt) }}
+              </span>
+            </p>
+          </NuxtLink>
+        </div>
       </div>
 
       <!-- Related Articles -->

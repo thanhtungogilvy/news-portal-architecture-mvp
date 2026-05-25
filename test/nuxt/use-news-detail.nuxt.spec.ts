@@ -2,7 +2,7 @@ import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { defineComponent, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApiSuccess } from '~/types/api'
-import type { NewsDto } from '~/types/news'
+import type { NewsDetailDto } from '~/types/news'
 import { useNewsDetail } from '~/composables/news/useNewsDetail'
 
 const { useFetchMock } = vi.hoisted(() => ({
@@ -11,7 +11,7 @@ const { useFetchMock } = vi.hoisted(() => ({
 
 mockNuxtImport('useFetch', () => useFetchMock)
 
-function createArticleResponse(viewCount: number): ApiSuccess<NewsDto> {
+function createArticleResponse(viewCount: number): ApiSuccess<NewsDetailDto> {
   return {
     data: {
       id: '11111111-1111-4111-8111-111111111111',
@@ -30,6 +30,10 @@ function createArticleResponse(viewCount: number): ApiSuccess<NewsDto> {
       publishedAt: '2026-05-18T12:00:00+07:00',
       createdAt: '2026-05-18T10:00:00.000Z',
       updatedAt: '2026-05-18T10:00:00.000Z',
+      navigation: {
+        newer: null,
+        older: null,
+      },
     },
   }
 }
@@ -52,7 +56,7 @@ describe('useNewsDetail', () => {
   })
 
   it('increments the local article view count after a successful view record', async () => {
-    const data = ref<ApiSuccess<NewsDto> | null>(createArticleResponse(12))
+    const data = ref<ApiSuccess<NewsDetailDto> | null>(createArticleResponse(12))
     useFetchMock.mockReturnValue({
       data,
       status: ref('success'),
@@ -73,7 +77,7 @@ describe('useNewsDetail', () => {
   })
 
   it('keeps article state stable if the view request fails', async () => {
-    const data = ref<ApiSuccess<NewsDto> | null>(createArticleResponse(7))
+    const data = ref<ApiSuccess<NewsDetailDto> | null>(createArticleResponse(7))
     useFetchMock.mockReturnValue({
       data,
       status: ref('success'),

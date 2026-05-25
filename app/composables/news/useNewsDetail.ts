@@ -1,8 +1,8 @@
-import type { NewsDto } from '~/types/news'
+import type { NewsDetailDto } from '~/types/news'
 import type { ApiSuccess } from '~/types/api'
 
 export function useNewsDetail(slug: MaybeRef<string>) {
-  const { data, status, error } = useFetch<ApiSuccess<NewsDto>>(
+  const { data, status, error } = useFetch<ApiSuccess<NewsDetailDto>>(
     () => `/api/news/${toValue(slug)}`,
     {
       key: () => `news-detail-${toValue(slug)}`,

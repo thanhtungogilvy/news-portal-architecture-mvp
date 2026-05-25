@@ -1,11 +1,12 @@
 import type { H3Event } from 'h3'
-import type { NewsDto } from '~/types/news'
+import type { NewsDto, NewsDetailDto } from '~/types/news'
 import type { NewsListQuery, AdminNewsListQuery, NewsCreateInput, NewsPatchInput } from '~/utils/validators/news'
 import {
   findPublishedNews,
   findFeaturedNews,
   findMostViewedNews,
   findNewsBySlug,
+  findAdjacentPublishedNews,
   findAdminNews,
   findAdminNewsById,
   insertNews,
@@ -40,12 +41,18 @@ export async function getMostViewedNews(event: H3Event): Promise<NewsDto[]> {
   return findMostViewedNews(event)
 }
 
-export async function getNewsBySlug(event: H3Event, slug: string): Promise<NewsDto> {
+export async function getNewsBySlug(event: H3Event, slug: string): Promise<NewsDetailDto> {
   const news = await findNewsBySlug(event, slug)
   if (!news) {
     throw createApiError(404, 'NOT_FOUND', `News '${slug}' not found`)
   }
-  return news
+
+  const navigation = await findAdjacentPublishedNews(event, news)
+
+  return {
+    ...news,
+    navigation,
+  }
 }
 
 export async function recordView(event: H3Event, id: string): Promise<void> {

@@ -20,3 +20,21 @@ export interface NewsDto {
   createdAt: string
   updatedAt: string
 }
+
+export interface NewsAdjacentDto {
+  id: string
+  title: string
+  slug: string
+  thumbnailUrl: string | null
+  category: CategoryDto | null
+  publishedAt: string | null
+}
+
+export interface NewsNavigationDto {
+  newer: NewsAdjacentDto | null
+  older: NewsAdjacentDto | null
+}
+
+export interface NewsDetailDto extends NewsDto {
+  navigation: NewsNavigationDto
+}

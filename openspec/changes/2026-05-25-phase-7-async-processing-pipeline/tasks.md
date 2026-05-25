@@ -8,10 +8,10 @@
 
 ## 2. Phase 7B. Adjacent Article Navigation
 
-- [ ] 2.1 Extend the news repository with adjacent published-article lookup for `newer` and `older` navigation
-- [ ] 2.2 Extend the news service/detail API to include navigation payload with minimal article metadata
-- [ ] 2.3 Update the news detail composable/types/page to render `Newer Post` and `Older Post` links
-- [ ] 2.4 Verify navigation behavior for first article, last article, and middle article scenarios
+- [x] 2.1 Extend the news repository with adjacent published-article lookup for `newer` and `older` navigation
+- [x] 2.2 Extend the news service/detail API to include navigation payload with minimal article metadata
+- [x] 2.3 Update the news detail composable/types/page to render `Newer Post` and `Older Post` links
+- [x] 2.4 Verify navigation behavior for first article, last article, and middle article scenarios
 
 ## 3. Phase 7C. Bulk Import and Progress Dashboard
 
