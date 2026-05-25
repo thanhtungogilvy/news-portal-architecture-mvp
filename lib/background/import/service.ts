@@ -45,6 +45,8 @@ async function processOneItem(
   },
 ): Promise<'published' | 'retried' | 'failed'> {
   const newAttemptCount = item.attempt_count + 1
+  // Track partial scrape result so it can be saved to DLQ on terminal failure
+  let scrapedSnapshot: Record<string, unknown> | null = null
 
   try {
     // 1. Dedup check — reuse news_id if this URL was already imported
@@ -58,6 +60,12 @@ async function processOneItem(
 
     // 2. Fetch + extract article
     const scraped = await scrapeArticle(item.source_url)
+    scrapedSnapshot = {
+      title: scraped.title,
+      summary: scraped.summary,
+      thumbnailUrl: scraped.thumbnailUrl,
+      authorName: scraped.authorName,
+    }
 
     // 3. Get batch context (category_id)
     const batch = await getImportBatch(client, item.batch_id)
@@ -143,6 +151,7 @@ async function processOneItem(
         source_url: item.source_url,
         failure_reason: errorMsg,
         attempt_count: newAttemptCount,
+        payload_snapshot: scrapedSnapshot,
       })
       await syncBatchStatus(client, item.batch_id)
       console.warn(`[import-svc] terminal failure item ${item.id} (attempt ${newAttemptCount}): ${errorMsg}`)

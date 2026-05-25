@@ -46,6 +46,7 @@ export type Database = {
           failure_reason: string
           id: string
           item_id: string
+          payload_snapshot: Json | null
           source_url: string
         }
         Insert: {
@@ -55,6 +56,7 @@ export type Database = {
           failure_reason: string
           id?: string
           item_id: string
+          payload_snapshot?: Json | null
           source_url: string
         }
         Update: {
@@ -64,6 +66,7 @@ export type Database = {
           failure_reason?: string
           id?: string
           item_id?: string
+          payload_snapshot?: Json | null
           source_url?: string
         }
         Relationships: [
