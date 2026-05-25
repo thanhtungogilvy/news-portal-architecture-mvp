@@ -3,7 +3,7 @@ import type { CategoryCreateInput } from '~/utils/validators/category'
 import type { ApiSuccess } from '~/types/api'
 import type { CategoryDto } from '~/types/category'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: 'admin' })
 
 const { show } = useAdminToast()
 const router = useRouter()
@@ -75,4 +75,3 @@ async function onSubmit(rows: CategoryCreateInput[]) {
     </div>
   </div>
 </template>
-

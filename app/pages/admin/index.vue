@@ -6,7 +6,7 @@ import type { ApiSuccess } from '~/types/api'
 
 dayjs.extend(relativeTime)
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: 'admin' })
 
 type AdminStats = {
   news: { total: number, published: number, draft: number, archived: number }

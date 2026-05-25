@@ -4,7 +4,7 @@ import type { ApiSuccess } from '~/types/api'
 import type { CategoryDto } from '~/types/category'
 import type { NewsDto } from '~/types/news'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: 'admin' })
 
 const route = useRoute()
 const router = useRouter()

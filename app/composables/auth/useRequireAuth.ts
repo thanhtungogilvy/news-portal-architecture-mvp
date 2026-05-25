@@ -1,12 +1,17 @@
 export function useRequireAuth() {
-  const user = useSupabaseUser()
+  const { user, isAdmin } = useAdminAccess()
   const router = useRouter()
 
   watch(
     user,
     (newUser) => {
       if (!newUser) {
-        router.push('/login')
+        router.push('/admin/login')
+        return
+      }
+
+      if (!isAdmin.value) {
+        router.push('/')
       }
     },
     { immediate: true },

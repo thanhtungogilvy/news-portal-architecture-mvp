@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NewsStatus } from '~/types/news'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: 'admin' })
 
 const route = useRoute()
 const router = useRouter()

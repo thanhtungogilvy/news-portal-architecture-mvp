@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiSuccess } from '~/types/api'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: 'admin' })
 
 interface Subscriber {
   id: string

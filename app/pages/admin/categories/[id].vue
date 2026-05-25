@@ -3,7 +3,7 @@ import type { CategoryCreateInput } from '~/utils/validators/category'
 import type { ApiSuccess } from '~/types/api'
 import type { CategoryDto } from '~/types/category'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: 'admin' })
 
 const route = useRoute()
 const router = useRouter()
