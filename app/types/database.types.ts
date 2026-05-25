@@ -118,12 +118,73 @@ export type Database = {
           },
         ]
       }
+      view_count_jobs: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          news_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          news_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          news_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "view_count_jobs_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_pending_view_count_jobs: {
+        Args: {
+          batch_size?: number
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          news_id: string
+          started_at: string | null
+          status: string
+        }[]
+      }
+      increment_news_view_count: {
+        Args: {
+          news_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ApiSuccess } from '~/types/api'
+import type { NewsDto } from '~/types/news'
 import { sanitizeHtml } from '~/utils/sanitize/html'
 import { formatCompactViewCount, estimateReadTime } from '~/utils/format/news'
 import dayjs from 'dayjs'
@@ -9,22 +11,49 @@ const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
 const { article, status, recordView } = useNewsDetail(slug)
+const lastRecordedId = ref<string | null>(null)
 
-onMounted(() => {
-  watch(
-    article,
-    (val) => {
-      if (val?.id) void recordView(val.id)
-    },
-    { immediate: true, once: true },
-  )
-})
+watch(
+  () => article.value?.id,
+  (id) => {
+    if (!import.meta.client || !id || lastRecordedId.value === id) return
+    lastRecordedId.value = id
+    void recordView(id)
+  },
+  { immediate: true },
+)
 
-const relatedQuery = computed(() => ({
-  category: article.value?.category?.slug ?? undefined,
-  limit: 4,
-}))
-const { news: relatedAll } = useNewsList(relatedQuery)
+const relatedCategorySlug = computed(() => article.value?.category?.slug ?? null)
+const relatedAll = ref<NewsDto[]>([])
+const relatedRequestId = ref(0)
+
+watch(
+  relatedCategorySlug,
+  async (slugValue) => {
+    if (import.meta.server) return
+
+    if (!slugValue) {
+      relatedAll.value = []
+      return
+    }
+
+    const requestId = ++relatedRequestId.value
+
+    try {
+      const response = await $fetch<ApiSuccess<NewsDto[]>>('/api/news', {
+        query: { category: slugValue, limit: 4 },
+      })
+
+      if (requestId !== relatedRequestId.value) return
+      relatedAll.value = response.data ?? []
+    } catch {
+      if (requestId !== relatedRequestId.value) return
+      relatedAll.value = []
+    }
+  },
+  { immediate: true },
+)
+
 const related = computed(() =>
   relatedAll.value.filter(n => n.slug !== slug.value).slice(0, 3),
 )

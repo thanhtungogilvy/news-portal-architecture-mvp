@@ -11,5 +11,6 @@ export default defineEventHandler(async (event) => {
   }
 
   await recordView(event, result.data)
+  setResponseStatus(event, 202)
   return successResponse(null)
 })

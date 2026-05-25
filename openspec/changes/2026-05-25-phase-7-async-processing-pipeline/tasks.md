@@ -1,10 +1,10 @@
 ## 1. Phase 7A. Queue Foundation
 
-- [ ] 1.1 Add schema/migrations for `view_count_jobs` and the minimal status/attempt/error/timestamp fields needed for async processing
-- [ ] 1.2 Create a worker entrypoint/process structure outside request handlers for polling and consuming pending job rows
-- [ ] 1.3 Update `POST /api/news/:id/view` to validate UUID, create a pending view-count job row, and return HTTP 202
-- [ ] 1.4 Add service/repository worker paths to atomically claim pending jobs and apply queued view increments using the existing atomic increment strategy
-- [ ] 1.5 Verify the public news detail page still records views best-effort without blocking rendering
+- [x] 1.1 Add schema/migrations for `view_count_jobs` and the minimal status/attempt/error/timestamp fields needed for async processing
+- [x] 1.2 Create a worker entrypoint/process structure outside request handlers for polling and consuming pending job rows
+- [x] 1.3 Update `POST /api/news/:id/view` to validate UUID, create a pending view-count job row, and return HTTP 202
+- [x] 1.4 Add service/repository worker paths to atomically claim pending jobs and apply queued view increments using the existing atomic increment strategy
+- [x] 1.5 Verify the public news detail page still records views best-effort without blocking rendering
 
 ## 2. Phase 7B. Adjacent Article Navigation
 

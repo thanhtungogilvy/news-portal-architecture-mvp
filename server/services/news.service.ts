@@ -6,7 +6,6 @@ import {
   findFeaturedNews,
   findMostViewedNews,
   findNewsBySlug,
-  incrementViewCount,
   findAdminNews,
   findAdminNewsById,
   insertNews,
@@ -14,6 +13,7 @@ import {
   deleteNews,
 } from '../repositories/news.repository'
 import { findCategoryBySlug } from '../repositories/category.repository'
+import { queueViewCountJob } from './view-count-job.service'
 
 export async function listNews(
   event: H3Event,
@@ -49,7 +49,7 @@ export async function getNewsBySlug(event: H3Event, slug: string): Promise<NewsD
 }
 
 export async function recordView(event: H3Event, id: string): Promise<void> {
-  await incrementViewCount(event, id)
+  await queueViewCountJob(event, id)
 }
 
 // ─── Admin flows ──────────────────────────────────────────────────────────────
