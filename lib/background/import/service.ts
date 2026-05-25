@@ -10,10 +10,12 @@ import {
   findBatchesNeedingFailureAlert,
   markBatchFailureEmailSent,
   getFailedItemsForBatch,
+  getItemCountsForBatch,
   getImportBatch,
   insertNewsForImport,
   findPublishedImportByUrl,
   findNewsBySlugForImport,
+  getStuckImportItems,
 } from './repository.ts'
 import { scrapeArticle, generateSlug } from './scraper.ts'
 import { sendBatchFailureAlert } from './alert.ts'
@@ -126,7 +128,13 @@ async function processOneItem(
   catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err)
 
-    if (newAttemptCount >= MAX_RETRIES) {
+    // Non-retriable: content extraction failures won't improve on retry
+    const isNonRetriable = (
+      errorMsg.startsWith('Could not extract article')
+      || errorMsg.startsWith('HTTP 4') // 4xx client errors
+    )
+
+    if (isNonRetriable || newAttemptCount >= MAX_RETRIES) {
       // Terminal failure → DLQ
       await markImportItemFailed(client, item.id, errorMsg, newAttemptCount)
       await insertImportDlqItem(client, {
@@ -179,6 +187,35 @@ export async function processImportItems(
 }
 
 // ---------------------------------------------------------------------------
+// Recover stuck items: always fail to DLQ after stuckAfterMinutes
+// ---------------------------------------------------------------------------
+export async function recoverStuckImportItems(
+  client: AppSupabaseClient,
+  stuckAfterMinutes = 5,
+): Promise<number> {
+  const items = await getStuckImportItems(client, stuckAfterMinutes)
+  if (items.length === 0) return 0
+
+  for (const item of items) {
+    const attemptCount = item.attempt_count ?? 0
+    const reason = `Stuck in processing for >${stuckAfterMinutes}min — marked failed`
+
+    await markImportItemFailed(client, item.id, reason, attemptCount)
+    await insertImportDlqItem(client, {
+      item_id: item.id,
+      batch_id: item.batch_id,
+      source_url: item.source_url,
+      failure_reason: reason,
+      attempt_count: attemptCount,
+    })
+    await syncBatchStatus(client, item.batch_id)
+    console.warn(`[import-svc] stuck item ${item.id} → failed + DLQ`)
+  }
+
+  return items.length
+}
+
+// ---------------------------------------------------------------------------
 // Send consolidated failure alerts for all batches needing one
 // ---------------------------------------------------------------------------
 export async function processBatchAlerts(client: AppSupabaseClient): Promise<void> {
@@ -186,11 +223,15 @@ export async function processBatchAlerts(client: AppSupabaseClient): Promise<voi
 
   for (const batch of batches) {
     try {
-      const failedItems = await getFailedItemsForBatch(client, batch.id)
+      const [failedItems, counts] = await Promise.all([
+        getFailedItemsForBatch(client, batch.id),
+        getItemCountsForBatch(client, batch.id),
+      ])
 
       await sendBatchFailureAlert({
         batchId: batch.id,
-        totalItems: batch.source_count,
+        batchStatus: batch.status,
+        publishedCount: counts.published,
         failedItems,
       })
 

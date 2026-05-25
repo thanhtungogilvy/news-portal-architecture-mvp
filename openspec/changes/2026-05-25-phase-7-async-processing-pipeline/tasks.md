@@ -31,12 +31,33 @@
 - [x] 4.5 Add explicit DLQ-table handling for terminal failures and persist failure details to `import_dlq_items`
 - [x] 4.6 Add Resend alert service using `RESEND_API_KEY`, `RESEND_FROM`, and `ADMIN_EMAIL`
 - [x] 4.7 Send one consolidated failure email per batch and persist `failure_email_sent_at` to avoid duplicate alerts
-- [ ] 4.8 Verify successful scrape publishing, retry behavior, terminal failure behavior, and alert emission paths
+- [x] 4.8 Verify successful scrape publishing, retry behavior, terminal failure behavior, and alert emission paths
 
-## 5. Quality Gates
+## 5. Phase 7E. Crawl Listing Page
 
-- [ ] 5.1 Add or update specs/tests for async view counting, adjacent navigation, import batch APIs, worker polling/claiming behavior, and Resend alert idempotency
-- [ ] 5.2 Run `npm run typecheck`
-- [ ] 5.3 Run `npm run lint`
-- [ ] 5.4 Manual: verify detail page still loads normally while view requests return 202
-- [ ] 5.5 Manual: verify admin can submit an import batch, see progress changes, and inspect failures
+- [x] 5.1 Add `importCrawlSchema` (url, categoryId, maxItems 1-100) to `app/utils/validators/import.ts`
+- [x] 5.2 Add `extractArticleLinks(listingUrl, maxItems)` to `lib/background/import/scraper.ts` — fetches listing HTML, discovers article hrefs via selector heuristics, filters by article URL pattern
+- [x] 5.3 Add `adminCrawlAndCreateImportBatch()` to `server/services/import.service.ts`
+- [x] 5.4 Add `POST /api/admin/import/crawl` with `requireAdmin`, Zod validation, and HTTP 202
+- [x] 5.5 Add `crawl()` method to `useAdminImportBatches` composable
+- [x] 5.6 Add "Crawl Page" tab to admin import page with listing URL + maxItems inputs
+
+## 6. Phase 7F. Import Deduplication and Auto-Refresh
+
+- [x] 6.1 Add `findPublishedImportByUrl(client, sourceUrl)` to `lib/background/import/repository.ts` — dedup check by source URL across batches
+- [x] 6.2 Add `findNewsBySlugForImport(client, slug)` to `lib/background/import/repository.ts` — dedup check by generated slug in news table
+- [x] 6.3 Update `processOneItem()` in `lib/background/import/service.ts` to check URL dedup first, then slug dedup before inserting new article
+- [x] 6.4 Remove timestamp suffix from `generateSlug()` — slugs are clean title-derived slugs; only surface SLUG_CONFLICT error on unresolvable race condition
+- [x] 6.5 Add `useIntervalFn`-based auto-polling (5 s) to `useAdminImportBatches` — stops when no active batches remain
+- [x] 6.6 Add `useIntervalFn`-based auto-polling (5 s) to `useAdminImportBatch` — stops when batch reaches terminal status
+
+## 7. Quality Gates
+
+- [x] 7.1 Add or update specs/tests for async view counting, adjacent navigation, import batch APIs, worker polling/claiming behavior, and Resend alert idempotency
+- [x] 7.2 Run `npm run typecheck`
+- [x] 7.3 Run `npm run lint`
+- [x] 7.4 Manual: verify detail page still loads normally while view requests return 202
+- [x] 7.5 Manual: verify admin can submit an import batch, see progress changes, and inspect failures
+- [x] 7.6 Manual: verify crawl listing page discovers and enqueues article URLs correctly
+- [x] 7.7 Manual: verify duplicate URLs across batches produce no duplicate news articles
+- [x] 7.8 Manual: verify batch status auto-updates in dashboard without page refresh

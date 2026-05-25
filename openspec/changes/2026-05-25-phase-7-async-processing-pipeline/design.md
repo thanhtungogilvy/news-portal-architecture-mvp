@@ -243,9 +243,38 @@ All admin APIs keep `requireAdmin()`.
 - **Worker runtime complexity**: polling workers still require a process model outside standard Nuxt request handlers.
 - **Scraping quality**: remote HTML extraction will be the highest-variance part of the phase.
 - **Eventual consistency**: view counts and import publishing progress become asynchronous.
-- **Slug collisions**: imported content may conflict with existing article slugs and needs deterministic handling.
+- **Slug collisions**: imported content may conflict with existing article slugs; two-layer dedup (URL + slug) handles the common cases; unresolvable race conditions surface as retriable errors.
 - **Job claiming correctness**: polling workers must atomically claim pending rows to avoid duplicate processing.
 - **Operational config**: Resend becomes a required dependency for terminal-failure alerts.
+- **Crawl selector coverage**: listing-page link extraction relies on CSS selector heuristics (`h2 a`, `h3 a`, `.title-news a`, etc.) and a URL pattern filter; sites with non-standard markup may yield fewer links.
+
+---
+
+### 10. Crawl listing page uses selector heuristics + URL pattern filter
+
+**Decision**: `extractArticleLinks(listingUrl, maxItems)` fetches the listing HTML, queries a ranked list of CSS selectors for anchor tags, and filters hrefs by a pattern requiring a numeric segment and a known extension (`/[a-z0-9-]*\d{5,}[a-z0-9-]*\.(html?|aspx)$/i`).
+
+**Rationale**:
+- A generalised scraper for arbitrary news sites cannot rely on a fixed schema; heuristic selectors cover the most common Vietnamese news portal layouts.
+- The URL pattern filter removes navigation, tag, and category links that would otherwise be enqueued as invalid items.
+- `maxItems` (default 20, max 100) keeps the resulting batch size manageable.
+
+---
+
+### 11. Import deduplication is two-layer: source URL then slug
+
+**Decision**: Before creating a new `news` row in `processOneItem()`:
+1. Query `import_items` for any `source_url` match in a `published` item — reuse the linked `news_id` if found.
+2. Generate a clean slug from the title (no timestamp or random suffix); query `news` for that slug — reuse the existing `news_id` if found.
+3. Only if both checks miss, insert a new `news` row.
+
+SLUG_CONFLICT race conditions (insert after our check) re-query rather than appending a suffix; if still unresolvable the item retries normally.
+
+**Rationale**:
+- The same article URL may appear in multiple batches (e.g., different admins submitting the same listing page); reusing the existing news record keeps the public site clean.
+- Slug dedup prevents ghost duplicates where the same title was also entered manually.
+- Avoiding random suffixes keeps URLs stable and human-readable.
+
 
 ## Phase Breakdown
 
@@ -271,3 +300,13 @@ All admin APIs keep `requireAdmin()`.
 - retry/backoff
 - `import_dlq_items`
 - Resend email alerts
+
+### Phase 7E. Crawl Listing Page
+- `extractArticleLinks()` HTML scraper for listing pages
+- `POST /api/admin/import/crawl` endpoint
+- Admin UI tab: paste listing URL → auto-discover links → enqueue batch
+
+### Phase 7F. Import Deduplication and Auto-Refresh
+- Two-layer dedup in import worker: source URL → existing `import_items`; generated slug → existing `news`
+- Clean slugs from title only — no timestamp or random suffix appended
+- `useIntervalFn` auto-polling (5 s) in `useAdminImportBatches` and `useAdminImportBatch`

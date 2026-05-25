@@ -217,7 +217,10 @@ export async function extractArticleLinks(
     for (const a of anchors) {
       const href = (a as HTMLAnchorElement).href
       if (href && isLikelyArticleUrl(href, origin)) {
-        seen.add(new URL(href).href.split('?')[0]!) // strip query string
+        const u = new URL(href)
+        u.search = ''
+        u.hash = ''
+        seen.add(u.href)
       }
     }
     if (seen.size >= maxItems * 3) break // enough candidates
@@ -229,7 +232,10 @@ export async function extractArticleLinks(
     for (const a of allAnchors) {
       const href = (a as HTMLAnchorElement).href
       if (href && isLikelyArticleUrl(href, origin)) {
-        seen.add(new URL(href).href.split('?')[0]!)
+        const u = new URL(href)
+        u.search = ''
+        u.hash = ''
+        seen.add(u.href)
       }
     }
   }

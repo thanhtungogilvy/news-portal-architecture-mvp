@@ -7,6 +7,25 @@ export type ImportItemRow = Tables<'import_items'>
 export type ImportBatchRow = Tables<'import_batches'>
 
 // ---------------------------------------------------------------------------
+// Fetch items stuck in processing beyond the cutoff
+// ---------------------------------------------------------------------------
+export async function getStuckImportItems(
+  client: AppSupabaseClient,
+  stuckAfterMinutes = 10,
+): Promise<ImportItemRow[]> {
+  const cutoff = new Date(Date.now() - stuckAfterMinutes * 60 * 1000).toISOString()
+
+  const { data, error } = await client
+    .from('import_items')
+    .select('*')
+    .eq('status', 'processing')
+    .lt('started_at', cutoff)
+
+  if (error) throw new Error(`[import-repo] getStuckImportItems failed: ${error.message}`)
+  return (data ?? []) as ImportItemRow[]
+}
+
+// ---------------------------------------------------------------------------
 // Claim pending import items (atomically: pending → processing)
 // ---------------------------------------------------------------------------
 export async function claimPendingImportItems(
@@ -181,7 +200,7 @@ export async function syncBatchStatus(
 }
 
 // ---------------------------------------------------------------------------
-// Find terminal batches that still need a failure alert email
+// Find terminal batches that still need a completion alert email
 // ---------------------------------------------------------------------------
 export async function findBatchesNeedingFailureAlert(
   client: AppSupabaseClient,
@@ -189,11 +208,32 @@ export async function findBatchesNeedingFailureAlert(
   const { data, error } = await client
     .from('import_batches')
     .select('*')
-    .in('status', ['failed', 'completed_with_failures'])
+    .in('status', ['completed', 'failed', 'completed_with_failures'])
     .is('failure_email_sent_at', null)
 
   if (error) throw new Error(`[import-repo] findBatchesNeedingAlert failed: ${error.message}`)
   return (data ?? []) as ImportBatchRow[]
+}
+
+// ---------------------------------------------------------------------------
+// Get item status counts for a batch
+// ---------------------------------------------------------------------------
+export async function getItemCountsForBatch(
+  client: AppSupabaseClient,
+  batchId: string,
+): Promise<{ pending: number, processing: number, published: number, failed: number }> {
+  const { data, error } = await client
+    .from('import_items')
+    .select('status')
+    .eq('batch_id', batchId)
+
+  if (error) throw new Error(`[import-repo] getItemCounts failed: ${error.message}`)
+  const counts = { pending: 0, processing: 0, published: 0, failed: 0 }
+  for (const row of data ?? []) {
+    const s = row.status as keyof typeof counts
+    if (s in counts) counts[s] += 1
+  }
+  return counts
 }
 
 // ---------------------------------------------------------------------------

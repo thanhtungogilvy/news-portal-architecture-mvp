@@ -175,7 +175,7 @@ async function onCrawlSubmit() {
               type="url"
               class="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-title outline-none transition focus:border-blue-500"
               placeholder="https://vnexpress.net/kinh-doanh"
-            />
+            >
             <p class="mt-2 text-xs text-body">URL của trang danh sách bài viết. Server sẽ tự crawl và tìm link article.</p>
           </div>
 
@@ -190,7 +190,7 @@ async function onCrawlSubmit() {
               min="1"
               max="100"
               class="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-title outline-none transition focus:border-blue-500"
-            />
+            >
           </div>
         </div>
 

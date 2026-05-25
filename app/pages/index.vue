@@ -43,7 +43,7 @@ function estimateReadTime(content: string): number {
           :src="hero.thumbnailUrl"
           :alt="hero.title"
           class="absolute inset-0 size-full object-cover"
-        />
+        >
         <div v-else class="absolute inset-0 bg-slate-200" />
         <div
           class="absolute inset-0 bg-gradient-to-b from-transparent to-navy-900/70 rounded-2xl"
@@ -80,7 +80,7 @@ function estimateReadTime(content: string): number {
             :src="hero.authorAvatarUrl"
             :alt="hero.authorName ?? ''"
             class="size-9 rounded-full object-cover shrink-0"
-          />
+          >
           <div v-else class="size-9 rounded-full bg-slate-300 shrink-0" />
           <div class="flex flex-col gap-0.5">
             <span class="text-base leading-[1.6] text-navy-900">{{
@@ -140,7 +140,7 @@ function estimateReadTime(content: string): number {
               :src="item.thumbnailUrl"
               :alt="item.title"
               class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-            />
+            >
             <div
               class="absolute inset-0 bg-gradient-to-r from-white/5 to-black/25 rounded-lg"
             />
@@ -319,7 +319,7 @@ function estimateReadTime(content: string): number {
               :src="item.thumbnailUrl"
               :alt="item.title"
               class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-            />
+            >
             <div
               class="absolute inset-0 bg-gradient-to-b from-white/5 to-black/40 rounded-lg"
             />
@@ -350,7 +350,7 @@ function estimateReadTime(content: string): number {
                 :src="item.authorAvatarUrl"
                 :alt="item.authorName ?? ''"
                 class="size-8 rounded-full object-cover shrink-0"
-              />
+              >
               <div v-else class="size-8 rounded-full bg-slate-300 shrink-0" />
               <span class="text-base leading-[1.6] text-navy-900">{{
                 item.authorName ?? "Biên tập viên"

@@ -1,6 +1,7 @@
 export interface BatchFailureAlertInput {
   batchId: string
-  totalItems: number
+  batchStatus: string
+  publishedCount: number
   failedItems: Array<{ source_url: string, last_error: string | null, attempt_count: number }>
 }
 
@@ -17,8 +18,9 @@ export async function sendBatchFailureAlert(input: BatchFailureAlertInput): Prom
     return
   }
 
-  const { batchId, totalItems, failedItems } = input
+  const { batchId, batchStatus, publishedCount, failedItems } = input
   const failedCount = failedItems.length
+  const totalItems = publishedCount + failedCount
 
   const itemRows = failedItems
     .map(
@@ -32,8 +34,22 @@ export async function sendBatchFailureAlert(input: BatchFailureAlertInput): Prom
     )
     .join('\n')
 
-  const html = `
-<p>Import batch <strong>${escapeHtml(batchId)}</strong> completed with <strong>${failedCount} of ${totalItems}</strong> items failed.</p>
+  const statusLabel: Record<string, string> = {
+    completed: 'Completed',
+    completed_with_failures: 'Completed with failures',
+    failed: 'Failed',
+  }
+  const statusColor: Record<string, string> = {
+    completed: '#16a34a',
+    completed_with_failures: '#d97706',
+    failed: '#dc2626',
+  }
+  const label = statusLabel[batchStatus] ?? batchStatus
+  const color = statusColor[batchStatus] ?? '#6b7280'
+
+  const failureTable = failedCount > 0
+    ? `
+<h3 style="margin-top:16px">Failed items (${failedCount})</h3>
 <table style="border-collapse:collapse;width:100%;font-size:13px">
   <thead>
     <tr style="background:#f3f4f6">
@@ -46,7 +62,18 @@ export async function sendBatchFailureAlert(input: BatchFailureAlertInput): Prom
   <tbody>
     ${itemRows}
   </tbody>
-</table>
+</table>`
+    : ''
+
+  const html = `
+<p>Import batch <strong>${escapeHtml(batchId)}</strong> has finished.</p>
+<p>Status: <strong style="color:${color}">${label}</strong></p>
+<ul style="font-size:14px">
+  <li>Published: <strong>${publishedCount}</strong></li>
+  <li>Failed: <strong>${failedCount}</strong></li>
+  <li>Total: <strong>${totalItems}</strong></li>
+</ul>
+${failureTable}
 `
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -58,7 +85,7 @@ export async function sendBatchFailureAlert(input: BatchFailureAlertInput): Prom
     body: JSON.stringify({
       from,
       to: [to],
-      subject: `[News Portal] Import batch ${batchId.slice(0, 8)} — ${failedCount} failure(s)`,
+      subject: `[News Portal] Import batch ${batchId.slice(0, 8)} — ${label}`,
       html,
     }),
     signal: AbortSignal.timeout(10_000),

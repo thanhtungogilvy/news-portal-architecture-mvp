@@ -159,7 +159,7 @@ useHead({
                 :src="article.authorAvatarUrl"
                 :alt="article.authorName ?? 'Tác giả'"
                 class="size-full object-cover"
-              />
+              >
               <div
                 v-else
                 class="flex size-full items-center justify-center bg-[#dbc7b5] text-[15px] font-semibold text-white"
@@ -188,7 +188,7 @@ useHead({
           :alt="article.title"
           class="h-[280px] w-full rounded-xl object-cover sm:h-[400px] lg:h-[560px]"
           loading="eager"
-        />
+        >
       </div>
 
       <!-- Article Body -->
@@ -279,7 +279,7 @@ useHead({
                 :alt="item.title"
                 class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
-              />
+              >
             </div>
             <div class="flex flex-col gap-3 px-6 pb-6 pt-5">
               <p class="text-[12px] font-medium uppercase tracking-[1.4px] text-sage-600">

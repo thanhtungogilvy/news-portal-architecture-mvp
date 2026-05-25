@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
-import { processImportItems, processBatchAlerts } from '../lib/background/import/service.ts'
+import { processImportItems, processBatchAlerts, recoverStuckImportItems } from '../lib/background/import/service.ts'
 import type { Database } from '../app/types/database.types.ts'
 
 const pollMs = Number(process.env.IMPORT_WORKER_POLL_MS ?? '10000')
@@ -31,6 +31,12 @@ function sleep(ms: number) {
 
 async function tick() {
   tickCount += 1
+
+  // Reset items stuck in processing (worker crashed mid-job)
+  const recovered = await recoverStuckImportItems(client)
+  if (recovered > 0) {
+    console.warn(`[worker:import] recovered ${recovered} stuck item(s) → pending`)
+  }
 
   const result = await processImportItems(client, batchSize)
   if (result.claimed > 0) {
