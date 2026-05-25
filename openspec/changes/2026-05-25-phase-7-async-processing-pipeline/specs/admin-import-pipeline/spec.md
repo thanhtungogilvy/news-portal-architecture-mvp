@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
 ### Requirement: Admins can submit bulk import batches
-The system SHALL provide `POST /api/admin/import/bulk` for authenticated admins to submit up to 100 source URLs, assign a target category, create import batch/item records, enqueue scraping jobs, and return HTTP 202 immediately.
+The system SHALL provide `POST /api/admin/import/bulk` for authenticated admins to submit up to 100 source URLs, assign a target category, create import batch/item records, create pending scraping jobs, and return HTTP 202 immediately.
 
 #### Scenario: Valid bulk import request
 - **WHEN** an authenticated admin submits 1 to 100 valid source URLs and a valid category
 - **THEN** the API SHALL create one import batch and one import item per accepted URL
-- **AND** the API SHALL enqueue a scrape job for each item
+- **AND** each import item SHALL be persisted in a pending state for worker pickup
 - **AND** the response SHALL be HTTP 202 with the created batch identifier
 
 #### Scenario: Too many URLs
@@ -27,3 +27,7 @@ The system SHALL provide admin progress views for import batches and items, incl
 #### Scenario: Batch detail
 - **WHEN** an authenticated admin opens an import batch detail view
 - **THEN** the UI SHALL display per-item status, source URL, and failure details when present
+
+#### Scenario: Batch failure alert deduplication
+- **WHEN** a batch already has `failure_email_sent_at` populated
+- **THEN** the system SHALL NOT send another operational failure email for the same batch automatically

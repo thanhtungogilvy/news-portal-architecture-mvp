@@ -7,19 +7,19 @@ The current repo already enforces a consistent application architecture:
 Admin routes already centralize authorization through `requireAdmin()`, and public article reads are served from server APIs rather than direct frontend Supabase calls. Existing synchronous view counting and planned import automation are both good fits for a background-job layer that sits beside the current HTTP request/response flow rather than replacing it.
 
 Phase 7 should preserve existing CRUD and reading flows while adding:
-- a queue-backed write path for article view recording
+- a Postgres-backed async write path for article view recording
 - adjacent article navigation on detail pages
 - an editorial import pipeline with batch tracking
-- reliable job processing with retries, DLQ handling, and SMTP alerts
+- reliable job processing with retries, DLQ handling, and Resend alerts
 
 ## Goals / Non-Goals
 
 **Goals**
-- Introduce BullMQ + Redis as the async processing foundation.
-- Make `POST /api/news/:id/view` enqueue-only and return HTTP 202.
+- Introduce Supabase/Postgres-backed job tables as the async processing foundation.
+- Make `POST /api/news/:id/view` create pending async job rows and return HTTP 202.
 - Add `newer` / `older` article navigation to the news detail API and page.
 - Add admin bulk import submission, batch/item persistence, progress views, and background scraping.
-- Add retry, backoff, DLQ, and SMTP alerting for terminal worker failures.
+- Add retry, backoff, DLQ-table handling, and Resend alerting for terminal worker failures.
 
 **Non-Goals**
 - No rewrite of existing public list/detail pages outside required detail navigation changes.
@@ -29,25 +29,26 @@ Phase 7 should preserve existing CRUD and reading flows while adding:
 
 ## Decisions
 
-### 1. Phase 7A uses BullMQ queues with separate worker processes
+### 1. Phase 7A uses Postgres-backed job tables with separate polling worker processes
 
-**Decision**: Introduce BullMQ queues backed by Redis for asynchronous processing, with workers running outside Nitro request handlers.
+**Decision**: Introduce asynchronous processing through Supabase/Postgres-backed job tables, with workers running outside Nitro request handlers and polling pending rows.
 
 **Rationale**:
 - The current Nitro server is request-oriented, not a natural home for long-lived queue consumers.
-- View counting and scraping jobs have different throughput and failure profiles; separate workers keep concerns isolated.
-- This preserves the existing HTTP architecture while adding a background-processing lane.
+- A POC should avoid paid queue infrastructure and extra Redis operational overhead.
+- View counting and scraping jobs have different throughput and failure profiles; separate worker loops keep concerns isolated.
+- This preserves the existing HTTP architecture while adding a background-processing lane using the existing database.
 
-**Queues**
-- `view-counter`
-- `import-scrape`
-- `import-dlq`
+**Job tables**
+- `view_count_jobs`
+- `import_items`
+- `import_dlq_items`
 
 ---
 
-### 2. View count API becomes enqueue-only with accepted semantics
+### 2. View count API becomes async accepted job creation
 
-**Decision**: `POST /api/news/:id/view` validates the UUID, enqueues a `view-counter` job, and returns HTTP 202 with a success envelope immediately.
+**Decision**: `POST /api/news/:id/view` validates the UUID, inserts a pending `view_count_jobs` row, and returns HTTP 202 with a success envelope immediately.
 
 **Rationale**:
 - The public detail page should not wait on database writes for a non-critical side effect.
@@ -98,7 +99,7 @@ Selection is based on published articles ordered by `published_at`, with determi
 
 ---
 
-### 5. Admin import submission remains enqueue-only
+### 5. Admin import submission remains async accepted job creation
 
 **Decision**: `POST /api/admin/import/bulk`:
 - requires admin
@@ -106,7 +107,7 @@ Selection is based on published articles ordered by `published_at`, with determi
 - enforces max 100 URLs
 - deduplicates request URLs
 - creates batch and item records
-- enqueues one scrape job per item
+- inserts one pending scrape job item per URL
 - returns HTTP 202 with the new `batchId`
 
 **Rationale**:
@@ -142,19 +143,48 @@ Selection is based on published articles ordered by `published_at`, with determi
 
 ---
 
-### 8. Retry and DLQ are explicit product behavior, not just queue defaults
+### 8. Retry and DLQ are explicit product behavior in database state
 
 **Decision**:
-- main scrape jobs use `attempts: 3`
-- backoff uses exponential delay
-- terminal failures are recorded in `import_items`
-- a DLQ handling path sends SMTP alert emails
+- scrape jobs use `attempt_count` persisted in `import_items`
+- retries stop after 3 attempts with exponential backoff scheduling
+- terminal failures are copied or moved into `import_dlq_items`
+- a DLQ handling path sends Resend alert emails
+- `import_batches.failure_email_sent_at` prevents duplicate alerts
 
 **Rationale**:
 - Operators need visible failure states in both the DB/dashboard and operational alerts.
-- Queue failure alone is not enough for editorial workflows; item status must stay queryable in the app itself.
+- A POC should keep reliability state queryable in Postgres rather than split between database tables and external queue metadata.
+
+---
+
+### 9. Resend is the alert transport for terminal failures
+
+**Decision**: Use Resend only for operational failure alerts when a batch accumulates terminal scraping failures.
+
+**Required config**:
+- `RESEND_API_KEY`
+- `RESEND_FROM`
+- `ADMIN_EMAIL`
+
+**Rationale**:
+- Resend keeps the alerting path simple for the POC.
+- The email use case is narrow: one operational failure alert per batch, not general application mail.
+- `failure_email_sent_at` on the batch provides idempotency.
 
 ## Data Model Additions
+
+### `view_count_jobs`
+
+Suggested fields:
+- `id`
+- `news_id`
+- `status`
+- `attempt_count`
+- `last_error`
+- `created_at`
+- `started_at`
+- `finished_at`
 
 ### `import_batches`
 
@@ -164,6 +194,7 @@ Suggested fields:
 - `category_id`
 - `source_count`
 - `status`
+- `failure_email_sent_at`
 - `created_at`
 - `updated_at`
 
@@ -174,7 +205,7 @@ Suggested fields:
 - `batch_id`
 - `source_url`
 - `status`
-- `retry_count`
+- `attempt_count`
 - `last_error`
 - `news_id`
 - `started_at`
@@ -182,10 +213,22 @@ Suggested fields:
 - `created_at`
 - `updated_at`
 
+### `import_dlq_items`
+
+Suggested fields:
+- `id`
+- `batch_id`
+- `import_item_id`
+- `source_url`
+- `failure_reason`
+- `attempt_count`
+- `payload_snapshot`
+- `created_at`
+
 ## API Surface
 
 ### Public
-- `POST /api/news/:id/view` -> enqueue and return `202`
+- `POST /api/news/:id/view` -> create pending job row and return `202`
 - `GET /api/news/:slug` -> include adjacent navigation data
 
 ### Admin
@@ -197,19 +240,20 @@ All admin APIs keep `requireAdmin()`.
 
 ## Risks / Trade-offs
 
-- **Worker runtime complexity**: BullMQ requires a process model outside standard Nuxt request handlers.
+- **Worker runtime complexity**: polling workers still require a process model outside standard Nuxt request handlers.
 - **Scraping quality**: remote HTML extraction will be the highest-variance part of the phase.
 - **Eventual consistency**: view counts and import publishing progress become asynchronous.
 - **Slug collisions**: imported content may conflict with existing article slugs and needs deterministic handling.
-- **Operational config**: Redis and SMTP become required deployment dependencies for the full phase.
+- **Job claiming correctness**: polling workers must atomically claim pending rows to avoid duplicate processing.
+- **Operational config**: Resend becomes a required dependency for terminal-failure alerts.
 
 ## Phase Breakdown
 
 ### Phase 7A. Queue Foundation
-- Redis/BullMQ wiring
-- `view-counter` queue
+- Postgres job-table wiring
+- `view_count_jobs`
 - `POST /api/news/:id/view` returns 202
-- worker applies increments
+- polling worker applies increments
 
 ### Phase 7B. Adjacent Article Navigation
 - repository/service support for newer/older published posts
@@ -225,5 +269,5 @@ All admin APIs keep `requireAdmin()`.
 - scrape worker
 - sanitize + create published news
 - retry/backoff
-- DLQ handling
-- SMTP email alerts
+- `import_dlq_items`
+- Resend email alerts

@@ -6,17 +6,17 @@ Phase 7 introduces background-job infrastructure and editorial import automation
 
 ## What Changes
 
-- **Phase 7A. Async view counter queue**: convert `POST /api/news/:id/view` from synchronous RPC increment into a BullMQ enqueue endpoint backed by Redis; return HTTP 202 immediately and process increments in a worker.
+- **Phase 7A. Async view counter queue**: convert `POST /api/news/:id/view` from synchronous RPC increment into a Postgres-backed job-record endpoint; return HTTP 202 immediately after inserting a pending `view_count_jobs` row and process increments in a polling worker.
 - **Phase 7B. News detail adjacent navigation**: extend the detail API and page to expose and render `Newer Post` and `Older Post` links for published articles.
-- **Phase 7C. Admin bulk import and progress dashboard**: add a new admin bulk-import form with textarea URLs, category selection, import batch/item persistence, enqueue-only import API, and progress views for batch status.
-- **Phase 7D. Scraping reliability and alerting**: add scraping workers that fetch external URLs, sanitize extracted content, create published news, retry failed jobs up to 3 times with exponential backoff, move terminal failures through DLQ handling, and send SMTP alerts.
+- **Phase 7C. Admin bulk import and progress dashboard**: add a new admin bulk-import form with textarea URLs, category selection, import batch/item persistence, async job-creation import API, and progress views for batch status.
+- **Phase 7D. Scraping reliability and alerting**: add scraping workers that fetch external URLs, sanitize extracted content, create published news, retry failed jobs up to 3 times with exponential backoff, move terminal failures into `import_dlq_items`, and send Resend alerts.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `admin-import-pipeline`: Admins can submit up to 100 source URLs as an import batch, assign a target category, enqueue scraping work, and track batch/item progress.
-- `background-job-reliability`: Background jobs support retries, exponential backoff, DLQ handling, and SMTP alerting for terminal failures.
+- `admin-import-pipeline`: Admins can submit up to 100 source URLs as an import batch, assign a target category, create pending scraping jobs, and track batch/item progress.
+- `background-job-reliability`: Background jobs support retries, exponential backoff, DLQ table handling, and Resend alerting for terminal failures.
 
 ### Modified Capabilities
 
@@ -25,10 +25,11 @@ Phase 7 introduces background-job infrastructure and editorial import automation
 
 ## Impact
 
-- New infrastructure wiring for BullMQ + Redis worker processes
+- New Postgres-backed async job tables and polling worker processes
 - New admin routes and UI pages under `/admin/import`
 - New persistence for import batches/items
+- New persistence for DLQ items and async view-count jobs
 - Modified `POST /api/news/:id/view` semantics from sync-200 to async-202
 - Modified news detail API payload to include adjacent article navigation
-- New SMTP runtime configuration for DLQ alerts
+- New Resend runtime configuration for DLQ alerts
 - No removal of existing public pages, admin CRUD, editor, upload, or newsletter flows
