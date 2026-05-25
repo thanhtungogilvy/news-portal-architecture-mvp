@@ -15,22 +15,22 @@
 
 ## 3. Phase 7C. Bulk Import and Progress Dashboard
 
-- [ ] 3.1 Add schema/migrations for `import_batches`, `import_items`, and `import_batches.failure_email_sent_at`, including status, timestamps, retry metadata, and item-to-news linkage
-- [ ] 3.2 Add repositories and services for batch creation, item creation, batch aggregation, and item listing
-- [ ] 3.3 Add `POST /api/admin/import/bulk` with `requireAdmin`, URL/category validation, max-100 enforcement, batch/item creation, pending-job creation behavior, and HTTP 202 response
-- [ ] 3.4 Add admin composables and pages for bulk import submission with textarea URLs and category dropdown
-- [ ] 3.5 Add admin batch list/detail progress dashboard showing Pending, Processing, Published, and Failed counts/status
-- [ ] 3.6 Verify no direct frontend Supabase business-data calls are introduced in the import flows
+- [x] 3.1 Add schema/migrations for `import_batches`, `import_items`, and `import_batches.failure_email_sent_at`, including status, timestamps, retry metadata, and item-to-news linkage
+- [x] 3.2 Add repositories and services for batch creation, item creation, batch aggregation, and item listing
+- [x] 3.3 Add `POST /api/admin/import/bulk` with `requireAdmin`, URL/category validation, max-100 enforcement, batch/item creation, pending-job creation behavior, and HTTP 202 response
+- [x] 3.4 Add admin composables and pages for bulk import submission with textarea URLs and category dropdown
+- [x] 3.5 Add admin batch list/detail progress dashboard showing Pending, Processing, Published, and Failed counts/status
+- [x] 3.6 Verify no direct frontend Supabase business-data calls are introduced in the import flows
 
 ## 4. Phase 7D. Scraping Reliability and Alerting
 
-- [ ] 4.1 Add schema/migrations for `import_dlq_items` to persist terminal failures
-- [ ] 4.2 Add scraping worker logic to poll pending `import_items`, fetch remote URLs, extract article data, sanitize content, and create published news through existing service/repository boundaries
-- [ ] 4.3 Update import item and batch status transitions for pending, processing, published, failed, completed, and completed-with-failures paths
-- [ ] 4.4 Configure retry max = 3 with exponential backoff scheduling in persisted job state
-- [ ] 4.5 Add explicit DLQ-table handling for terminal failures and persist failure details to `import_dlq_items`
-- [ ] 4.6 Add Resend alert service using `RESEND_API_KEY`, `RESEND_FROM`, and `ADMIN_EMAIL`
-- [ ] 4.7 Send one consolidated failure email per batch and persist `failure_email_sent_at` to avoid duplicate alerts
+- [x] 4.1 Add schema/migrations for `import_dlq_items` to persist terminal failures
+- [x] 4.2 Add scraping worker logic to poll pending `import_items`, fetch remote URLs, extract article data, sanitize content, and create published news through existing service/repository boundaries
+- [x] 4.3 Update import item and batch status transitions for pending, processing, published, failed, completed, and completed-with-failures paths
+- [x] 4.4 Configure retry max = 3 with exponential backoff scheduling in persisted job state
+- [x] 4.5 Add explicit DLQ-table handling for terminal failures and persist failure details to `import_dlq_items`
+- [x] 4.6 Add Resend alert service using `RESEND_API_KEY`, `RESEND_FROM`, and `ADMIN_EMAIL`
+- [x] 4.7 Send one consolidated failure email per batch and persist `failure_email_sent_at` to avoid duplicate alerts
 - [ ] 4.8 Verify successful scrape publishing, retry behavior, terminal failure behavior, and alert emission paths
 
 ## 5. Quality Gates

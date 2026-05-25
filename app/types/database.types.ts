@@ -38,6 +38,152 @@ export type Database = {
         }
         Relationships: []
       }
+      import_dlq_items: {
+        Row: {
+          attempt_count: number
+          batch_id: string
+          created_at: string
+          failure_reason: string
+          id: string
+          item_id: string
+          source_url: string
+        }
+        Insert: {
+          attempt_count: number
+          batch_id: string
+          created_at?: string
+          failure_reason: string
+          id?: string
+          item_id: string
+          source_url: string
+        }
+        Update: {
+          attempt_count?: number
+          batch_id?: string
+          created_at?: string
+          failure_reason?: string
+          id?: string
+          item_id?: string
+          source_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_dlq_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_dlq_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "import_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string | null
+          failure_email_sent_at: string | null
+          id: string
+          source_count: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          failure_email_sent_at?: string | null
+          id?: string
+          source_count: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          failure_email_sent_at?: string | null
+          id?: string
+          source_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_items: {
+        Row: {
+          attempt_count: number
+          batch_id: string
+          created_at: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          news_id: string | null
+          next_retry_at: string
+          source_url: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          batch_id: string
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          news_id?: string | null
+          next_retry_at?: string
+          source_url: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          batch_id?: string
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          news_id?: string | null
+          next_retry_at?: string
+          source_url?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_items_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_subscribers: {
         Row: {
           id: string

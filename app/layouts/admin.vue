@@ -14,6 +14,7 @@ const iconMap: Record<string, string> = {
 const navLinks = [
   { label: 'Dashboard', to: '/admin', icon: 'grid' },
   { label: 'News', to: '/admin/news', icon: 'file-text' },
+  { label: 'Imports', to: '/admin/import', icon: 'file-text' },
   { label: 'Categories', to: '/admin/categories', icon: 'tag' },
   { label: 'Newsletter', to: '/admin/newsletter', icon: 'mail' },
 ]
