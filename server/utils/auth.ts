@@ -6,7 +6,14 @@ export function deriveRole(user: { app_metadata?: Record<string, unknown> }): st
 }
 
 export async function requireAuth(event: H3Event) {
-  const user = await serverSupabaseUser(event)
+  let user
+  try {
+    user = await serverSupabaseUser(event)
+  } catch (error) {
+    console.error('[auth] Failed to resolve Supabase user', error)
+    throw createApiError(500, 'INTERNAL_ERROR', 'Failed to resolve authenticated user')
+  }
+
   if (!user) {
     throw createApiError(401, 'UNAUTHENTICATED', 'Authentication required')
   }

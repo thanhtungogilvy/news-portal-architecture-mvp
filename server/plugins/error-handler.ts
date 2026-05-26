@@ -5,6 +5,14 @@ export default defineNitroPlugin((nitro) => {
     if (!event) return
 
     if (isError(error) && (error.data as { error?: { code?: string } } | undefined)?.error?.code) {
+      if (error.statusCode >= 500) {
+        console.error('[server] H3Error:', {
+          statusCode: error.statusCode,
+          statusMessage: error.statusMessage,
+          message: error.message,
+          data: error.data,
+        })
+      }
       return
     }
 

@@ -108,6 +108,13 @@ async function findItemsByBatchIds(
     .in('batch_id', batchIds)
 
   if (error) {
+    console.error('[import.repository] Failed to fetch import items', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      batchIds,
+    })
     throw createApiError(500, 'INTERNAL_ERROR', 'Failed to fetch import items')
   }
 
@@ -128,6 +135,13 @@ export async function findAdminImportBatches(
     .range(offset, offset + query.limit - 1)
 
   if (error) {
+    console.error('[import.repository] Failed to fetch import batches', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      query,
+    })
     throw createApiError(500, 'INTERNAL_ERROR', 'Failed to fetch import batches')
   }
 
@@ -163,6 +177,13 @@ export async function findAdminImportBatchById(
     .maybeSingle()
 
   if (batchError) {
+    console.error('[import.repository] Failed to fetch import batch', {
+      code: batchError.code,
+      message: batchError.message,
+      details: batchError.details,
+      hint: batchError.hint,
+      id,
+    })
     throw createApiError(500, 'INTERNAL_ERROR', 'Failed to fetch import batch')
   }
 
@@ -183,6 +204,14 @@ export async function findAdminImportBatchById(
   const { data: itemData, error: itemError, count: filteredCount } = await itemsQuery
 
   if (itemError) {
+    console.error('[import.repository] Failed to fetch import batch items', {
+      code: itemError.code,
+      message: itemError.message,
+      details: itemError.details,
+      hint: itemError.hint,
+      id,
+      query,
+    })
     throw createApiError(500, 'INTERNAL_ERROR', 'Failed to fetch import batch items')
   }
 
@@ -192,6 +221,13 @@ export async function findAdminImportBatchById(
     .eq('batch_id', id)
 
   if (countsError) {
+    console.error('[import.repository] Failed to aggregate import batch items', {
+      code: countsError.code,
+      message: countsError.message,
+      details: countsError.details,
+      hint: countsError.hint,
+      id,
+    })
     throw createApiError(500, 'INTERNAL_ERROR', 'Failed to aggregate import batch items')
   }
 
