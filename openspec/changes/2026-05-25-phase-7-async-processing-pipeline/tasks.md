@@ -61,3 +61,11 @@
 - [x] 7.6 Manual: verify crawl listing page discovers and enqueues article URLs correctly
 - [x] 7.7 Manual: verify duplicate URLs across batches produce no duplicate news articles
 - [x] 7.8 Manual: verify batch status auto-updates in dashboard without page refresh
+
+## 8. Deployment (Vercel)
+
+- [x] 8.1 Add `server/api/internal/cron/view-count.post.ts` — Vercel Cron route thay cho worker loop: xử lý pending view-count jobs, guard bằng `CRON_SECRET`
+- [x] 8.2 Add `server/api/internal/cron/import.post.ts` — Vercel Cron route thay cho worker loop: recover stuck items, process import items, send alerts
+- [x] 8.3 Add `vercel.json` với cron schedule `* * * * *` cho cả 2 route
+- [x] 8.4 Add `workers/all.ts` — combined local dev entrypoint chạy cả view-count và import loop trong 1 process (`npm run worker:all`)
+- [x] 8.5 Add `worker:all` npm script vào `package.json`

@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/cron/view-count",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/cron/import",
+      "schedule": "* * * * *"
+    }
+  ]
+}

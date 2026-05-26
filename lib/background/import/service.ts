@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '../../../app/types/database.types'
+import type { Database, Json } from '../../../app/types/database.types'
 import {
   claimPendingImportItems,
   markImportItemPublished,
@@ -151,7 +151,7 @@ async function processOneItem(
         source_url: item.source_url,
         failure_reason: errorMsg,
         attempt_count: newAttemptCount,
-        payload_snapshot: scrapedSnapshot,
+        payload_snapshot: scrapedSnapshot as Json | null,
       })
       await syncBatchStatus(client, item.batch_id)
       console.warn(`[import-svc] terminal failure item ${item.id} (attempt ${newAttemptCount}): ${errorMsg}`)
