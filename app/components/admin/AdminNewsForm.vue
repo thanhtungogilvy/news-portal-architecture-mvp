@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { newsCreateSchema, type NewsCreateInput } from '~/utils/validators/news'
 import type { CategoryDto } from '~/types/category'
+import { generateSlug } from '~/utils/format/slug'
 
 const props = defineProps<{
   modelValue: NewsCreateInput
@@ -26,13 +27,7 @@ function onTitleInput(value: string) {
   emit('update:modelValue', { ...props.modelValue, title: value })
   errors.value.title = undefined
   if (!slugManuallyEdited.value) {
-    const slug = value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
+    const slug = generateSlug(value)
     emit('update:modelValue', { ...props.modelValue, title: value, slug })
   }
 }

@@ -1,29 +1,41 @@
 <script setup lang="ts">
 import type { NewsDto } from "~/types/news";
+import type { CategoryDto } from "~/types/category";
+import type { ApiSuccess } from "~/types/api";
 import { formatNewsDate } from "~/utils/format/news";
 
 definePageMeta({ layout: "default" });
 
 const { news: featured } = useFeaturedNews();
 const { news: mostViewed } = useMostViewedNews();
-const { categories } = useCategoryList();
-const { news: allNews } = useNewsList({ limit: 30 });
 
 const hero = computed<NewsDto | null>(() => featured.value[0] ?? null);
 const trending = computed<NewsDto[]>(() => featured.value.slice(0, 3));
 const editorPicks = computed<NewsDto[]>(() => mostViewed.value.slice(0, 2));
 
-// Build category columns: first 3 categories, each with up to 4 articles
-const categoryColumns = computed(() => {
-  const cols = categories.value.slice(0, 3).map((cat) => ({
-    name: cat.name,
-    slug: cat.slug,
-    articles: allNews.value
-      .filter((n) => n.category?.slug === cat.slug)
-      .slice(0, 4),
-  }));
-  return cols;
-});
+// Fetch first 3 categories then their top 4 articles each (parallel)
+const { data: categoryColumnsData } = useAsyncData(
+  "home-category-columns",
+  async () => {
+    const catsRes = await $fetch<ApiSuccess<CategoryDto[]>>("/api/categories");
+    const cats = catsRes.data.slice(0, 3);
+    if (cats.length === 0) return [];
+    const newsArr = await Promise.all(
+      cats.map((cat) =>
+        $fetch<ApiSuccess<NewsDto[]>>("/api/news", {
+          query: { category: cat.slug, limit: 4 },
+        }),
+      ),
+    );
+    return cats.map((cat, i) => ({
+      name: cat.name,
+      slug: cat.slug,
+      articles: newsArr[i]?.data ?? [],
+    }));
+  },
+  { default: () => [] as Array<{ name: string; slug: string; articles: NewsDto[] }> },
+);
+const categoryColumns = computed(() => categoryColumnsData.value ?? []);
 
 function estimateReadTime(content: string): number {
   return Math.max(1, Math.ceil(content.split(/\s+/).length / 200));

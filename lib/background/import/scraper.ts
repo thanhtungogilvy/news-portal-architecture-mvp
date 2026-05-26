@@ -184,33 +184,74 @@ function isLikelyArticleUrl(href: string, listingOrigin: string): boolean {
   }
 }
 
-export interface ExtractLinksResult {
-  urls: string[]
-  discovered: number
+// ---------------------------------------------------------------------------
+// Detect the next pagination page URL from a listing page document
+// ---------------------------------------------------------------------------
+const NEXT_PAGE_SELECTORS = [
+  'a[rel="next"]',       // standard
+  'a.next_page',         // VnExpress
+  '.btn-page a.next',
+  '.pagination a.next',
+  'li.next a[href]',
+]
+
+function findNextPageUrl(doc: Document, currentUrl: string, origin: string): string | null {
+  // 1. Semantic next-page link
+  for (const sel of NEXT_PAGE_SELECTORS) {
+    const el = doc.querySelector(sel) as HTMLAnchorElement | null
+    if (el?.href) {
+      try {
+        const u = new URL(el.href)
+        if (u.origin === origin && u.href !== currentUrl) return u.href
+      }
+      catch { /* skip */ }
+    }
+  }
+
+  // 2. VnExpress / common pattern: find the currently active page number and link to n+1
+  const pageLinks = Array.from(
+    doc.querySelectorAll('.btn-page a[href], .pagination a[href], [class*="page"] a[href]'),
+  ) as HTMLAnchorElement[]
+
+  // Find active/current page number
+  const activePage = doc.querySelector(
+    '.btn-page strong, .btn-page .active, .pagination .active, [class*="page"] .active',
+  )
+  const currentPageNum = activePage ? Number.parseInt(activePage.textContent?.trim() ?? '', 10) : NaN
+
+  if (!Number.isNaN(currentPageNum)) {
+    const nextNum = currentPageNum + 1
+    const nextLink = pageLinks.find((a) => a.textContent?.trim() === String(nextNum))
+    if (nextLink?.href) {
+      try {
+        const u = new URL(nextLink.href)
+        if (u.origin === origin) return u.href
+      }
+      catch { /* skip */ }
+    }
+  }
+
+  // 3. VnExpress URL pattern: base-p2, base-p3
+  try {
+    const baseUrl = currentUrl.replace(/-p(\d+)$/, '')
+    const match = currentUrl.match(/-p(\d+)$/)
+    const currentP = match ? Number.parseInt(match[1] ?? '1', 10) : 1
+    const nextP = currentP + 1
+    const nextUrl = `${baseUrl}-p${nextP}`
+    // Verify this page actually exists by checking if any pagination link points to it
+    const nextUrlObj = new URL(nextUrl)
+    const hasNextLink = pageLinks.some((a) => {
+      try { return a.href && (new URL(a.href).href === nextUrl || new URL(a.href).pathname === nextUrlObj.pathname) }
+      catch { return false }
+    })
+    if (hasNextLink) return nextUrl
+  }
+  catch { /* skip */ }
+
+  return null
 }
 
-export async function extractArticleLinks(
-  listingUrl: string,
-  maxItems: number,
-): Promise<ExtractLinksResult> {
-  const response = await fetch(listingUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; NewsImportBot/1.0)',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.5',
-    },
-    signal: AbortSignal.timeout(15_000),
-  })
-
-  if (!response.ok) throw new Error(`HTTP ${response.status} fetching listing page`)
-
-  const html = await response.text()
-  const dom = new JSDOM(html, { url: listingUrl })
-  const doc = dom.window.document
-  const origin = new URL(listingUrl).origin
-
-  const seen = new Set<string>()
-
+function collectLinksFromDoc(doc: Document, origin: string, seen: Set<string>): void {
   // Try targeted selectors first (higher precision)
   for (const selector of ARTICLE_LINK_SELECTORS) {
     const anchors = doc.querySelectorAll(selector)
@@ -223,21 +264,63 @@ export async function extractArticleLinks(
         seen.add(u.href)
       }
     }
-    if (seen.size >= maxItems * 3) break // enough candidates
   }
 
-  // If still not enough, sweep all links matching article URL pattern
-  if (seen.size < maxItems) {
-    const allAnchors = doc.querySelectorAll('a[href]')
-    for (const a of allAnchors) {
-      const href = (a as HTMLAnchorElement).href
-      if (href && isLikelyArticleUrl(href, origin)) {
-        const u = new URL(href)
-        u.search = ''
-        u.hash = ''
-        seen.add(u.href)
-      }
+  // Sweep all links matching article URL pattern
+  const allAnchors = doc.querySelectorAll('a[href]')
+  for (const a of allAnchors) {
+    const href = (a as HTMLAnchorElement).href
+    if (href && isLikelyArticleUrl(href, origin)) {
+      const u = new URL(href)
+      u.search = ''
+      u.hash = ''
+      seen.add(u.href)
     }
+  }
+}
+
+export interface ExtractLinksResult {
+  urls: string[]
+  discovered: number
+}
+
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (compatible; NewsImportBot/1.0)',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.5',
+}
+
+export async function extractArticleLinks(
+  listingUrl: string,
+  maxItems: number,
+): Promise<ExtractLinksResult> {
+  const origin = new URL(listingUrl).origin
+  const seen = new Set<string>()
+  let currentUrl: string | null = listingUrl
+  let pagesFetched = 0
+  const MAX_PAGES = 10
+
+  while (currentUrl && seen.size < maxItems && pagesFetched < MAX_PAGES) {
+    const response = await fetch(currentUrl, {
+      headers: FETCH_HEADERS,
+      signal: AbortSignal.timeout(15_000),
+    })
+
+    if (!response.ok) {
+      if (pagesFetched === 0) throw new Error(`HTTP ${response.status} fetching listing page`)
+      break // stop pagination on error
+    }
+
+    const html = await response.text()
+    const dom = new JSDOM(html, { url: currentUrl })
+    const doc = dom.window.document
+
+    collectLinksFromDoc(doc, origin, seen)
+    pagesFetched++
+
+    if (seen.size >= maxItems) break
+
+    currentUrl = findNextPageUrl(doc, currentUrl, origin)
   }
 
   const all = Array.from(seen)
@@ -247,22 +330,4 @@ export async function extractArticleLinks(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Generate a URL-safe slug from a (possibly Vietnamese) title
-// ---------------------------------------------------------------------------
-export function generateSlug(title: string): string {
-  const base = title
-    .replace(/[ĐĐ]/g, 'D')
-    .replace(/[đ]/g, 'd')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // strip combining diacritics
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 100)
-
-  return base || 'article'
-}
+export { generateSlug } from '../../../app/utils/format/slug'

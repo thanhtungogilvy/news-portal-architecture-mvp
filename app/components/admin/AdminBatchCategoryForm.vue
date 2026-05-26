@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { categoryCreateSchema, type CategoryCreateInput } from '~/utils/validators/category'
+import { generateSlug } from '~/utils/format/slug'
 
 type Row = {
   id: number
@@ -35,15 +36,7 @@ function removeRow(index: number) {
   rows.value.splice(index, 1)
 }
 
-function generateSlug(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-}
+
 
 function onNameInput(index: number, value: string) {
   const row = rows.value[index]

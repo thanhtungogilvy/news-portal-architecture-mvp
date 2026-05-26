@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { categoryCreateSchema, type CategoryCreateInput } from '~/utils/validators/category'
+import { generateSlug } from '~/utils/format/slug'
 
 const props = defineProps<{
   modelValue: CategoryCreateInput
@@ -23,13 +24,7 @@ function update(field: keyof CategoryCreateInput, value: string) {
 function onNameInput(value: string) {
   update('name', value)
   if (!slugManuallyEdited.value) {
-    const slug = value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
+    const slug = generateSlug(value)
     emit('update:modelValue', { ...props.modelValue, name: value, slug })
   }
 }
