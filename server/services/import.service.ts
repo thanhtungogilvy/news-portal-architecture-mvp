@@ -8,7 +8,6 @@ import {
   insertImportBatch,
   insertImportItems,
 } from '../repositories/import.repository'
-import { extractArticleLinks } from '../../lib/background/import/scraper'
 
 function normalizeUrls(urls: string[]): string[] {
   return [...new Set(urls.map((url) => url.trim()).filter(Boolean))]
@@ -84,6 +83,7 @@ export async function adminCrawlAndCreateImportBatch(
     throw createApiError(404, 'NOT_FOUND', `Category '${input.categoryId}' not found`)
   }
 
+  const { extractArticleLinks } = await import('../../lib/background/import/scraper')
   const { urls, discovered } = await extractArticleLinks(input.url, input.maxItems)
 
   if (urls.length === 0) {
