@@ -1,10 +1,10 @@
-import { isH3Error } from 'h3'
+import { isError } from 'h3'
 
 export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('error', (error, { event }) => {
     if (!event) return
 
-    if (isH3Error(error) && (error.data as { error?: { code?: string } } | undefined)?.error?.code) {
+    if (isError(error) && (error.data as { error?: { code?: string } } | undefined)?.error?.code) {
       return
     }
 
