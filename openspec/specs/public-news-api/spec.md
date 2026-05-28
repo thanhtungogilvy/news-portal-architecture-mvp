@@ -41,12 +41,12 @@ The endpoint SHALL return top N published news ordered by `view_count DESC`.
 - **WHEN** GET /api/news/most-viewed is called
 - **THEN** the response SHALL include `Cache-Control: public, max-age=60, stale-while-revalidate=300`
 
-### Requirement: GET /api/news/:slug returns single published news article
-The endpoint SHALL return a single news article by slug.
+### Requirement: GET /api/news/:slug returns single published news article with adjacent navigation
+The endpoint SHALL return a single news article by slug, extended with adjacent published article navigation (`newer` and `older`).
 
 #### Scenario: Found and published
 - **WHEN** GET /api/news/:slug is called with a valid published news slug
-- **THEN** response SHALL be `{ data: NewsDto }` with HTTP 200
+- **THEN** response SHALL be `{ data: NewsDetailDto }` with HTTP 200, where `NewsDetailDto` extends `NewsDto` with `navigation: { newer: NewsAdjacentDto | null, older: NewsAdjacentDto | null }`
 
 #### Scenario: Not found or not published
 - **WHEN** GET /api/news/:slug is called with a non-existent or draft slug

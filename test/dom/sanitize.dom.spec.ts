@@ -30,6 +30,14 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('data:image')
   })
 
+  it('removes img tags that have no usable src', () => {
+    const input = '<p>before</p><img alt="only-alt"><img src="" alt="empty"><p>after</p>'
+    const result = sanitizeHtml(input)
+    expect(result).not.toContain('<img')
+    expect(result).toContain('<p>before</p>')
+    expect(result).toContain('<p>after</p>')
+  })
+
   it('strips javascript: href', () => {
     const input = '<a href="javascript:alert(1)">Click</a>'
     const result = sanitizeHtml(input)

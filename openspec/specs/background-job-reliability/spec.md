@@ -16,8 +16,8 @@ The scraping worker SHALL retry failed import jobs up to 3 times with exponentia
 - **WHEN** a scrape job fails with a non-retriable error (HTTP 4xx, content extraction failure)
 - **THEN** the system SHALL skip retries and immediately mark the item as terminal failure
 
-### Requirement: Terminal failures enter DLQ handling and emit Resend alerts
-The system SHALL process terminal scrape failures through a DLQ handling path and emit a Resend alert email with operational context.
+### Requirement: Terminal batch completion triggers DLQ handling and Resend alert
+The system SHALL process terminal scrape failures through a DLQ handling path, and SHALL emit a consolidated Resend alert email when any import batch reaches a terminal status (`completed`, `failed`, or `completed_with_failures`).
 
 #### Scenario: DLQ alert
 - **WHEN** an import item reaches terminal failure after all retries

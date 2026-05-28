@@ -59,3 +59,49 @@ Row Level Security SHALL be enabled on `categories` and `news` to ensure data ac
 #### Scenario: News DTO maps to API shape
 - **WHEN** `NewsDto` is used in a composable
 - **THEN** it SHALL have `id`, `title`, `slug`, `summary`, `content`, `thumbnailUrl`, `categoryId`, `category`, `authorId`, `status`, `viewCount`, `publishedAt`, `createdAt` (camelCase) fields
+
+### Requirement: view_count_jobs table has required columns
+The `view_count_jobs` table SHALL have: `id` (uuid PK), `news_id` (uuid, not null, FK → news.id ON DELETE CASCADE), `status` (text, not null, default `'pending'`, check IN `['pending', 'processing', 'completed', 'failed']`), `attempt_count` (integer, not null, default 0), `last_error` (text, nullable), `created_at` (timestamptz, default now()), `started_at` (timestamptz, nullable), `finished_at` (timestamptz, nullable).
+
+#### Scenario: RLS blocks public access
+- **WHEN** an anon, public, or authenticated (non-service-role) client queries `view_count_jobs`
+- **THEN** all operations SHALL be denied — only `service_role` has access
+
+#### Scenario: Atomic job claiming via stored function
+- **WHEN** `claim_pending_view_count_jobs(batch_size)` is called
+- **THEN** it SHALL atomically SELECT FOR UPDATE SKIP LOCKED up to `batch_size` pending rows and flip their status to `processing` in a single statement
+
+#### Scenario: Cascading delete
+- **WHEN** a `news` row is deleted
+- **THEN** all associated `view_count_jobs` rows SHALL be deleted automatically
+
+### Requirement: import_batches table has required columns
+The `import_batches` table SHALL have: `id` (uuid PK), `created_by` (uuid, nullable, FK → auth.users.id ON DELETE SET NULL), `category_id` (uuid, not null, FK → categories.id), `source_count` (integer, not null, check >= 0), `status` (text, not null, default `'pending'`, check IN `['pending', 'processing', 'completed', 'completed_with_failures', 'failed']`), `failure_email_sent_at` (timestamptz, nullable), `created_at` (timestamptz, default now()), `updated_at` (timestamptz, default now()).
+
+#### Scenario: RLS admin-only for import_batches
+- **WHEN** an anon or non-admin authenticated user queries `import_batches`
+- **THEN** SELECT, INSERT, UPDATE, DELETE SHALL all be denied
+- **WHEN** an admin user queries `import_batches`
+- **THEN** all operations SHALL be permitted
+
+### Requirement: import_items table has required columns
+The `import_items` table SHALL have: `id` (uuid PK), `batch_id` (uuid, not null, FK → import_batches.id ON DELETE CASCADE), `source_url` (text, not null), `status` (text, not null, default `'pending'`, check IN `['pending', 'processing', 'published', 'failed']`), `attempt_count` (integer, not null, default 0, check >= 0), `next_retry_at` (timestamptz, not null, default now()), `last_error` (text, nullable), `news_id` (uuid, nullable, FK → news.id ON DELETE SET NULL), `started_at` (timestamptz, nullable), `finished_at` (timestamptz, nullable), `created_at` (timestamptz, default now()), `updated_at` (timestamptz, default now()). A unique constraint SHALL exist on `(batch_id, source_url)`.
+
+#### Scenario: Duplicate source_url within same batch rejected
+- **WHEN** inserting an `import_items` row with a `source_url` already present in the same batch
+- **THEN** Supabase SHALL reject with a unique constraint violation
+
+#### Scenario: RLS admin-only for import_items
+- **WHEN** an anon or non-admin authenticated user queries `import_items`
+- **THEN** SELECT, INSERT, UPDATE, DELETE SHALL all be denied
+
+### Requirement: import_dlq_items table has required columns
+The `import_dlq_items` table SHALL have: `id` (uuid PK), `item_id` (uuid, not null, FK → import_items.id), `batch_id` (uuid, not null, FK → import_batches.id), `source_url` (text, not null), `failure_reason` (text, not null), `attempt_count` (integer, not null), `payload_snapshot` (jsonb, nullable — partial article data extracted before failure), `created_at` (timestamptz, default now()).
+
+#### Scenario: RLS admin-only for import_dlq_items
+- **WHEN** an anon or non-admin authenticated user queries `import_dlq_items`
+- **THEN** SELECT and INSERT SHALL be denied
+
+#### Scenario: payload_snapshot is nullable
+- **WHEN** a scrape fails before any article data is extracted (e.g., HTTP error)
+- **THEN** `payload_snapshot` SHALL be NULL

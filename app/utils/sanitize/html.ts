@@ -33,6 +33,9 @@ export function sanitizeHtml(html: string): string {
       }
     }
   })
+
+  // Prevent broken image rendering: if src is missing/invalid after filtering, drop the image node.
+  doc.querySelectorAll('img:not([src]), img[src=""]').forEach((img) => img.remove())
   return doc.body.innerHTML
 }
 

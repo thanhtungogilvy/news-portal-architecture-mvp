@@ -22,7 +22,78 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     img: ['src', 'alt', 'title'],
   },
   allowedSchemes: ['http', 'https'],
+  exclusiveFilter: (frame) => frame.tag === 'img' && !frame.attribs.src,
   disallowedTagsMode: 'discard',
+}
+
+const LAZY_IMG_ATTRS = ['data-src', 'data-original', 'data-lazy-src', 'data-url'] as const
+
+function resolveImageUrl(rawUrl: string, pageUrl: string): string | null {
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return null
+
+  const lower = trimmed.toLowerCase()
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+    return null
+  }
+
+  try {
+    if (trimmed.startsWith('//')) return `https:${trimmed}`
+    const resolved = new URL(trimmed, pageUrl).href
+    const protocol = new URL(resolved).protocol
+    if (protocol !== 'http:' && protocol !== 'https:') return null
+    return resolved
+  }
+  catch {
+    return null
+  }
+}
+
+function normalizeContentImages(rawHtml: string, pageUrl: string): string {
+  const dom = new JSDOM(`<div id="__root">${rawHtml}</div>`, { url: pageUrl })
+  const doc = dom.window.document
+  const root = doc.getElementById('__root')
+  if (!root) return rawHtml
+
+  for (const img of root.querySelectorAll('img')) {
+    let srcCandidate = img.getAttribute('src')
+
+    if (!srcCandidate) {
+      for (const attr of LAZY_IMG_ATTRS) {
+        const candidate = img.getAttribute(attr)
+        if (candidate) {
+          srcCandidate = candidate
+          break
+        }
+      }
+    }
+
+    if (!srcCandidate) {
+      const srcset = img.getAttribute('srcset')
+      if (srcset) {
+        const first = srcset
+          .split(',')
+          .map((part) => part.trim().split(/\s+/)[0])
+          .find(Boolean)
+        if (first) srcCandidate = first
+      }
+    }
+
+    const normalizedSrc = srcCandidate ? resolveImageUrl(srcCandidate, pageUrl) : null
+
+    if (!normalizedSrc) {
+      img.remove()
+      continue
+    }
+
+    img.setAttribute('src', normalizedSrc)
+    img.removeAttribute('srcset')
+    for (const attr of LAZY_IMG_ATTRS) {
+      img.removeAttribute(attr)
+    }
+  }
+
+  return root.innerHTML
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +198,8 @@ export async function scrapeArticle(url: string): Promise<ScrapedArticle> {
 
   // --- Content ---
   const rawBody = extractBody(doc)
-  const content = sanitizeHtml(rawBody, SANITIZE_OPTIONS)
+  const normalizedBody = normalizeContentImages(rawBody, url)
+  const content = sanitizeHtml(normalizedBody, SANITIZE_OPTIONS)
 
   if (!title) throw new Error('Could not extract article title')
   if (!content || content.length < 50) throw new Error('Could not extract article content')

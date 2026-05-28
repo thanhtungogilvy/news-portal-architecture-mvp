@@ -16,6 +16,7 @@ const CONTENT_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     img: ['src', 'alt', 'title'],
   },
   allowedSchemes: ['http', 'https', 'mailto'],
+  exclusiveFilter: (frame) => frame.tag === 'img' && !frame.attribs.src,
   disallowedTagsMode: 'discard',
 }
 

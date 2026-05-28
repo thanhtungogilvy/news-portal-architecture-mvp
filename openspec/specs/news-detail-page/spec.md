@@ -40,3 +40,18 @@ The news detail page SHALL render `Newer Post` and `Older Post` navigation when 
 #### Scenario: Last published article
 - **WHEN** the current article is the oldest published article
 - **THEN** the page SHALL omit `Older Post`
+
+### Requirement: News detail page displays related articles from the same category
+The news detail page SHALL fetch and render up to 3 published articles from the same category as the current article, excluding the current article itself.
+
+#### Scenario: Related articles available
+- **WHEN** the current article belongs to a category that has other published articles
+- **THEN** the page SHALL render up to 3 related articles as cards, each linking to the respective article detail page
+
+#### Scenario: Current article excluded
+- **WHEN** the same-category fetch returns the current article in its result
+- **THEN** the current article SHALL be excluded from the rendered related articles list
+
+#### Scenario: No related articles
+- **WHEN** the current article has no category, or no other published articles exist in its category
+- **THEN** the related articles section SHALL be omitted or empty without error
