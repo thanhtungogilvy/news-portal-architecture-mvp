@@ -47,12 +47,26 @@ BULK                          CRAWL
 Admin paste N URLs thủ công  Admin paste 1 listing URL
 { urls[], categoryId }        { url, categoryId, maxItems }
                                   ↓
-                              fetch HTML → JSDOM
-                              thử 12 CSS selectors theo thứ tự
-                              (VnExpress selectors trước → generic)
-                              filter URL bằng regex:
-                                /[a-z0-9-]*\d{5,}[a-z0-9-]*\.(html?|aspx)$/i
-                              → ra discovered URLs
+fetch HTML → JSDOM (timeout 15s)
+              Thu thập links (2 pass):
+                Pass 1 — targeted selectors (13 entries, ưu tiên cao hơn):
+                  h3.title-news a, h4.title-news a, .title-news a    ← VnExpress
+                  article h2/h3 a, .article-item h2/h3 a
+                  .news-item h2/h3 a, .item-news h3 a
+                  h2/h3/h4 a                                         ← generic fallback
+                Pass 2 — sweep toàn bộ a[href] trong trang
+              filter URL:
+                - cùng origin với listing URL
+                - match regex: /\/[a-z0-9-]*\d{5,}[a-z0-9-]*\.(html?|aspx)$/i
+                - không phải root / hay path không có extension
+              dedup: Set<string> (strip query + hash)
+              Pagination (tối đa 10 trang):
+                findNextPageUrl() thử theo thứ tự:
+                  a[rel="next"], a.next_page, .pagination a.next     ← semantic
+                  active page number + link đến page+1               ← numeric
+                  VnExpress URL pattern: base-p2, base-p3            ← URL-based
+                → stop khi seen.size >= maxItems hoặc không tìm ra next
+              → ra { urls: slice(0, maxItems), discovered: seen.size }
 
              Từ đây GIỐNG NHAU 100%
              ─────────────────────
@@ -70,17 +84,40 @@ Admin paste N URLs thủ công  Admin paste 1 listing URL
 ### Worker (pg_cron mỗi phút)
 
 ```
-1. recoverStuckItems()
-   → items ở 'processing' > 5 phút → force 'failed' + DLQ
+1. recoverStuckImportItems(stuckAfterMinutes=5)
+   cutoff = now - 5min
+   SELECT * FROM import_items WHERE status='processing' AND started_at < cutoff
+   → mỗi item:
+       markImportItemFailed(id, reason, attempt_count)
+       insertImportDlqItem(...)   ← không có payload_snapshot (scrape chưa xảy ra)
+       syncBatchStatus(batch_id)
 
 2. processImportItems(batchSize=5)
-   → SELECT pending WHERE next_retry_at <= now LIMIT 5
-   → UPDATE to 'processing' WHERE status='pending'  ← guard atomic
-   → processOneItem() cho từng item
+   Phase 1 — Claim (atomic two-phase):
+     SELECT id, batch_id FROM import_items
+       WHERE status='pending' AND next_retry_at <= now
+       ORDER BY created_at  LIMIT batchSize
+     UPDATE import_items SET status='processing', started_at=now
+       WHERE id IN (...) AND status='pending'  ← guard: chỉ claim nếu vẫn còn pending
+     → items thực sự claimed = UPDATE result (có thể ít hơn batchSize)
+
+   Phase 2 — Process (sequential, không parallel):
+     for each item → processOneItem(item)
+
+   Returns: { claimed, published, retried, failed }
 
 3. processBatchAlerts()
-   → batch terminal + failure_email_sent_at IS NULL?
-   → gửi Resend email, mark sent
+   → findBatchesNeedingFailureAlert():
+       WHERE status IN ('completed', 'failed', 'completed_with_failures')
+         AND failure_email_sent_at IS NULL
+   → mỗi batch (Promise.all song song):
+       [failedItems, counts] = await Promise.all([
+         getFailedItemsForBatch(batchId),    ← source_url + last_error + attempt_count
+         getItemCountsForBatch(batchId),
+       ])
+       sendBatchFailureAlert({ batchId, batchStatus, publishedCount, failedItems })
+       markBatchFailureEmailSent(batchId)
+   → Error isolation: 1 batch fail → log error, tiếp tục batch tiếp theo
 ```
 
 ---
@@ -93,15 +130,44 @@ a. URL dedup
    → URL đã published ở batch khác? reuse news_id, done ✓
 
 b. scrapeArticle(url)   ← xem chi tiết phần 3
+   → save scrapedSnapshot { title, summary, thumbnailUrl, authorName }
+      dùng để lưu vào DLQ nếu sau này fail terminal
 
-c. slug dedup
-   generateSlug(title)   ← clean, no timestamp suffix
+c. getImportBatch(batch_id)
+   → lấy category_id cho bước insert
+
+d. Slug generation + dedup
+   slug = generateSlug(title)   ← clean, no timestamp suffix
    findNewsBySlugForImport(slug)
    → slug đã tồn tại? reuse news_id, done ✓
 
-d. insertNews()   status='published', publishedAt=now
+e. insertNewsForImport()   status='published', publishedAt=now
+   SLUG_CONFLICT race condition handling:
+   → Nếu insert throw SLUG_CONFLICT (race giữa check và insert)
+     ├─ Re-check findNewsBySlugForImport(slug)
+     │   → tìm thấy: reuse news_id (cùng bài)
+     │   → không tìm thấy: append suffix vào slug → retry insert
+     └─ (suffix dạng: slug + '}'  ← escape valve, rất hiếm xảy ra)
 
-e. markPublished() + syncBatchStatus()
+f. markImportItemPublished(itemId, newsId)
+   syncBatchStatus(batch_id)
+```
+
+### syncBatchStatus() — derive batch status từ item counts
+
+```
+SELECT status FROM import_items WHERE batch_id = ?
+→ đếm: { pending, processing, published, failed }
+→ active = pending + processing
+
+if (active > 0)              → 'processing'
+else if (failed === 0)        → 'completed'
+else if (published === 0)     → 'failed'
+else                          → 'completed_with_failures'
+
+UPDATE import_batches SET status=newStatus WHERE id = batchId
+
+Gọi sau MỌI thay đổi trạng thái item — không có interval riêng.
 ```
 
 ---
@@ -109,23 +175,45 @@ e. markPublished() + syncBatchStatus()
 ### Retry và Terminal Failure
 
 ```
+newAttemptCount = item.attempt_count + 1
+
 Error xảy ra:
   ├─ non-retriable?
-  │    "Could not extract article..."  ← JSDOM parse fail
-  │    "HTTP 4xx"                      ← 404, 403 từ nguồn
-  │  → terminal ngay, không retry
+  │    startsWith('Could not extract article')  ← title/content fail
+  │    startsWith('HTTP 4')                      ← 404, 403, 400...
+  │  → terminal ngay, không retry (kể cả attempt 1)
   │
-  ├─ attempt_count >= 3?   → terminal
+  ├─ newAttemptCount >= MAX_RETRIES (3)?  → terminal
   │
   └─ else → retry với backoff:
-       attempt 1 → next_retry_at = now + 1 min
-       attempt 2 → next_retry_at = now + 5 min
-       status trở về 'pending'
+       newAttemptCount=1 → next_retry_at = now + 1 min
+       newAttemptCount=2 → next_retry_at = now + 5 min
+       UPDATE import_items SET status='pending', attempt_count, last_error,
+                               next_retry_at, finished_at=NULL
 
-Terminal:
-  markImportItemFailed()
-  insertImportDlqItem()    ← lưu payload_snapshot nếu có
-  syncBatchStatus()
+Terminal failure:
+  markImportItemFailed(itemId, errorMsg, newAttemptCount)
+  insertImportDlqItem({
+    item_id, batch_id, source_url,
+    failure_reason: errorMsg,
+    attempt_count: newAttemptCount,
+    payload_snapshot: scrapedSnapshot | null   ← có nếu fail sau scrape
+  })
+  syncBatchStatus(batch_id)
+```
+
+### DLQ — import_dlq_items
+
+```
+Lưu mọi terminal failure để debug/replay:
+  item_id        UUID
+  batch_id       UUID
+  source_url     text
+  failure_reason text
+  attempt_count  int
+  payload_snapshot JSON | null   ← { title, summary, thumbnailUrl, authorName }
+                                    có nếu scrape thành công nhưng insert fail
+                                    null nếu fail trước/trong scrape
 ```
 
 ---
@@ -146,7 +234,171 @@ else                    → 'completed_with_failures'
 
 ---
 
-## 3. Scraper — scrapeArticle(url)
+## 3. Architecture
+
+### Module boundaries
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Nuxt App (app/)                                     │
+│                                                      │
+│  pages/admin/import/        composables/admin/       │
+│    index.vue  [id].vue        useAdminImportBatches  │
+│       │                       useAdminImportBatch    │
+│       └──── useFetch ──────────────┘                 │
+└──────────────────────┬──────────────────────────────┘
+                       │ HTTP (JSON)
+┌──────────────────────▼──────────────────────────────┐
+│  Nitro Server (server/)                              │
+│                                                      │
+│  POST /api/admin/import/bulk                         │
+│  POST /api/admin/import/crawl                        │
+│  GET  /api/admin/import/batches                      │
+│  GET  /api/admin/import/batches/:id                  │
+│  POST /api/internal/cron/import  ← CRON_SECRET auth  │
+│                                                      │
+│  services/import.service.ts   ← orchestration        │
+│  repositories/import.repository.ts ← HTTP-context    │
+└──────────────────────┬──────────────────────────────┘
+                       │ supabase-js
+┌──────────────────────▼──────────────────────────────┐
+│  lib/background/import/  (shared worker logic)       │
+│                                                      │
+│  service.ts    ← processImportItems()                │
+│                   recoverStuckImportItems()           │
+│                   processBatchAlerts()               │
+│  repository.ts ← Supabase queries (service role)     │
+│  scraper.ts    ← fetch + JSDOM + sanitize            │
+│  alert.ts      ← Resend email API                    │
+└──────────────────────┬──────────────────────────────┘
+                       │ supabase-js (service role)
+┌──────────────────────▼──────────────────────────────┐
+│  Supabase                                            │
+│                                                      │
+│  import_batches   import_items   import_dlq_items    │
+│  news             categories     internal_settings   │
+└─────────────────────────────────────────────────────┘
+```
+
+> `lib/background/import/` không phụ thuộc vào Nitro/H3 — dùng được cả từ cron endpoint và standalone worker.
+
+---
+
+### Deployment topology — 2 options
+
+```
+Option A: pg_cron (production, recommended)
+──────────────────────────────────────────
+Supabase pg_cron
+  → mỗi phút chạy SQL:
+      net.http_post(
+        url     = 'https://<app>/api/internal/cron/import',
+        headers = { Authorization: 'Bearer <cron_secret>' }
+      )
+  → cron_secret đọc từ bảng internal_settings
+    (không hard-code trong migration)
+
+Vercel CRON_SECRET env var phải khớp với internal_settings.cron_secret
+
+Ưu điểm:
+  - Không tốn thêm infra (chạy trong Supabase)
+  - Vercel serverless function — scale tự động
+  - Nếu 2 pg_cron trigger trùng nhau:
+      atomic claim (WHERE status='pending') ngăn double-process
+
+Option B: Standalone Node.js worker
+────────────────────────────────────
+workers/all.ts  (hoặc workers/import.ts riêng lẻ)
+  Chạy: node --experimental-strip-types workers/all.ts
+
+Hai vòng lặp bất đồng bộ song song (Promise.all):
+  runViewCount()  poll mỗi VIEW_COUNT_WORKER_POLL_MS  (default 2s)
+  runImport()     poll mỗi IMPORT_WORKER_POLL_MS      (default 10s)
+
+processBatchAlerts() gọi mỗi IMPORT_WORKER_ALERT_INTERVAL_TICKS ticks (default 6)
+  → ~60s với default 10s poll
+
+Graceful shutdown: SIGINT / SIGTERM → shuttingDown = true → vòng lặp exit sau tick hiện tại
+
+Env vars:
+  SUPABASE_URL           hoặc NUXT_PUBLIC_SUPABASE_URL
+  SUPABASE_SERVICE_KEY   hoặc SUPABASE_SERVICE_ROLE_KEY
+  VIEW_COUNT_WORKER_POLL_MS       (default 2000)
+  VIEW_COUNT_WORKER_BATCH_SIZE    (default 25)
+  IMPORT_WORKER_POLL_MS           (default 10000)
+  IMPORT_WORKER_BATCH_SIZE        (default 5)
+  IMPORT_WORKER_ALERT_INTERVAL_TICKS (default 6)
+```
+
+---
+
+### Supabase tables
+
+```
+import_batches
+  id                UUID PK
+  category_id       UUID FK → categories
+  created_by        UUID FK → auth.users
+  source_count      int     ← số URL khi tạo batch
+  status            text    ← pending | processing | completed | failed | completed_with_failures
+  failure_email_sent_at timestamptz | null
+  created_at / updated_at
+
+import_items
+  id                UUID PK
+  batch_id          UUID FK → import_batches
+  source_url        text UNIQUE (per batch? hay global?)
+  status            text    ← pending | processing | published | failed
+  attempt_count     int     default 0
+  next_retry_at     timestamptz  default now()   ← dùng để gate retry
+  started_at        timestamptz | null
+  finished_at       timestamptz | null
+  last_error        text | null
+  news_id           UUID FK → news | null
+  created_at / updated_at
+
+import_dlq_items
+  id                UUID PK
+  item_id           UUID FK → import_items
+  batch_id          UUID FK → import_batches
+  source_url        text
+  failure_reason    text
+  attempt_count     int
+  payload_snapshot  jsonb | null
+  created_at
+
+internal_settings
+  key               text PK
+  value             text
+  (RLS: chỉ service role đọc được)
+```
+
+---
+
+### Cron secret flow
+
+```
+Migration 20260526200000_setup_pg_cron_jobs.sql tạo:
+  - extension pg_net
+  - bảng internal_settings (RLS: service role only)
+  - 2 cron jobs đọc secret từ internal_settings
+
+Sau migration, admin chạy thủ công:
+  INSERT INTO internal_settings (key, value)
+  VALUES ('cron_secret', '<secret>')
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+Vercel: CRON_SECRET = <cùng secret>
+
+Server handler:
+  verifyCronSecret(event):
+    if (!CRON_SECRET) return   ← dev mode: bỏ qua
+    if header Authorization !== 'Bearer <CRON_SECRET>' → 401
+```
+
+---
+
+## 4. Scraper — scrapeArticle(url)
 
 ### Bước 1: Fetch HTML
 
@@ -192,7 +444,31 @@ BODY     xem bước 4
 Trước khi lấy: xóa noise bên trong element:
   script, style, .advertisement, .ads, [class*=social], [class*=related]
 
-Fallback cuối: ghép tất cả <p> trong trang
+Fallback cuối: ghép tất cả <p> trong trang → join '\n'
+```
+
+### Bước 4b: Normalize images — normalizeContentImages(rawHtml, pageUrl)
+
+```
+Mỗi <img> trong body:
+  1. Tìm src theo thứ tự ưu tiên:
+       src attribute
+       data-src, data-original, data-lazy-src, data-url  ← lazy-load attrs
+       srcset (lấy phần tử đầu tiên sau split ',')
+
+  2. resolveImageUrl(candidate, pageUrl):
+       protocol relative (//...)  → https://...
+       relative path             → resolved với new URL(path, pageUrl)
+       javascript: / data: / vbscript:  → null (bỏ)
+       không phải http/https     → null (bỏ)
+
+  3. src hợp lệ → setAttribute('src', normalizedSrc)
+                  removeAttribute('srcset')
+                  remove tất cả data-* lazy attrs
+     src null   → img.remove()
+
+Mục đích: đảm bảo img.src luôn là URL tuyệt đối http/https hợp lệ
+         trước khi đưa vào sanitize.
 ```
 
 ### Bước 5: Sanitize
