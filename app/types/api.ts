@@ -5,6 +5,9 @@ export type ApiErrorCode =
   | 'VALIDATION_ERROR'
   | 'CONFLICT'
   | 'INTERNAL_ERROR'
+  | 'CRAWL_FETCH_ERROR'
+  | 'CRAWL_UPSTREAM_ERROR'
+  | 'CRAWL_NETWORK_ERROR'
 
 export interface ApiSuccess<T> {
   data: T

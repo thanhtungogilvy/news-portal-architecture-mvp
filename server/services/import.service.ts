@@ -84,7 +84,25 @@ export async function adminCrawlAndCreateImportBatch(
   }
 
   const { extractArticleLinks } = await import('../../lib/background/import/scraper')
-  const { urls, discovered } = await extractArticleLinks(input.url, input.maxItems)
+
+  let urls: string[]
+  let discovered: number
+  try {
+    const result = await extractArticleLinks(input.url, input.maxItems)
+    urls = result.urls
+    discovered = result.discovered
+  }
+  catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.startsWith('HTTP 4')) {
+      throw createApiError(422, 'CRAWL_FETCH_ERROR', `Could not fetch listing page: ${msg}`)
+    }
+    if (msg.startsWith('HTTP 5')) {
+      throw createApiError(502, 'CRAWL_UPSTREAM_ERROR', `Listing page returned a server error: ${msg}`)
+    }
+    // Timeout or network failure
+    throw createApiError(502, 'CRAWL_NETWORK_ERROR', `Failed to reach listing page: ${msg}`)
+  }
 
   if (urls.length === 0) {
     throw createApiError(422, 'VALIDATION_ERROR', 'No article links found on the provided page')
