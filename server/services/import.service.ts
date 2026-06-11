@@ -86,7 +86,7 @@ export async function adminCrawlAndCreateImportBatch(
   let urls: string[]
   let discovered: number
   try {
-    const { extractArticleLinks } = await import('../../lib/background/import/scraper')
+    const { extractArticleLinks } = await import('../../lib/background/import/crawler')
     const result = await extractArticleLinks(input.url, input.maxItems)
     urls = result.urls
     discovered = result.discovered
