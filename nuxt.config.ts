@@ -66,6 +66,14 @@ export default defineNuxtConfig({
     redirect: false,
   },
 
+  nitro: {
+    vercel: {
+      functions: {
+        maxDuration: 60,
+      },
+    },
+  },
+
   vite: {
     optimizeDeps: {
       include: [
