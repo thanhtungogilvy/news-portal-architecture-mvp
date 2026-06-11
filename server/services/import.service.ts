@@ -83,11 +83,10 @@ export async function adminCrawlAndCreateImportBatch(
     throw createApiError(404, 'NOT_FOUND', `Category '${input.categoryId}' not found`)
   }
 
-  const { extractArticleLinks } = await import('../../lib/background/import/scraper')
-
   let urls: string[]
   let discovered: number
   try {
+    const { extractArticleLinks } = await import('../../lib/background/import/scraper')
     const result = await extractArticleLinks(input.url, input.maxItems)
     urls = result.urls
     discovered = result.discovered

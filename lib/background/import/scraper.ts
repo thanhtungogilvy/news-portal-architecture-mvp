@@ -375,7 +375,7 @@ export async function extractArticleLinks(
   while (currentUrl && seen.size < maxItems && pagesFetched < MAX_PAGES) {
     const response = await fetch(currentUrl, {
       headers: FETCH_HEADERS,
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {

@@ -66,6 +66,15 @@ export default defineNuxtConfig({
     redirect: false,
   },
 
+  nitro: {
+    externals: {
+      // jsdom and sanitize-html use complex CJS internals that Rollup cannot
+      // bundle reliably in the Vercel preset. Mark them external so Nitro
+      // copies them from node_modules instead of trying to inline them.
+      external: ["jsdom", "sanitize-html"],
+    },
+  },
+
   vite: {
     optimizeDeps: {
       include: [
