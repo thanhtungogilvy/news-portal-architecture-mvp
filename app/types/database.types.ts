@@ -267,6 +267,85 @@ export type Database = {
           },
         ]
       }
+      article_embeddings: {
+        Row: {
+          article_id: string
+          created_at: string
+          embedding: string
+          embedding_model: string
+          embedding_text: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          embedding: string
+          embedding_model: string
+          embedding_text: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          embedding?: string
+          embedding_model?: string
+          embedding_text?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_embeddings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      embedding_jobs: {
+        Row: {
+          article_id: string
+          attempt_count: number
+          created_at: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          article_id: string
+          attempt_count?: number
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          article_id?: string
+          attempt_count?: number
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "embedding_jobs_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       view_count_jobs: {
         Row: {
           attempt_count: number
@@ -313,6 +392,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_pending_embedding_jobs: {
+        Args: {
+          batch_size?: number
+        }
+        Returns: {
+          article_id: string
+          attempt_count: number
+          created_at: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          started_at: string | null
+          status: string
+        }[]
+      }
       claim_pending_view_count_jobs: {
         Args: {
           batch_size?: number
@@ -333,6 +427,17 @@ export type Database = {
           news_id: string
         }
         Returns: boolean
+      }
+      match_article_embeddings: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          filter?: Json
+        }
+        Returns: {
+          article_id: string
+          similarity: number
+        }[]
       }
     }
     Enums: {

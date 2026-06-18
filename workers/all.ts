@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
 import { processPendingViewCountJobs } from '../lib/background/view-count/service.ts'
 import { processImportItems, processBatchAlerts, recoverStuckImportItems } from '../lib/background/import/service.ts'
+import { processPendingEmbeddingJobs } from '../lib/background/embedding/service.ts'
 import type { Database } from '../app/types/database.types.ts'
 
 const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NUXT_PUBLIC_SUPABASE_URL
@@ -22,6 +23,9 @@ const viewCountBatchSize = Number(process.env.VIEW_COUNT_WORKER_BATCH_SIZE ?? '2
 const importPollMs = Number(process.env.IMPORT_WORKER_POLL_MS ?? '10000')
 const importBatchSize = Number(process.env.IMPORT_WORKER_BATCH_SIZE ?? '5')
 const alertEveryTicks = Number(process.env.IMPORT_WORKER_ALERT_INTERVAL_TICKS ?? '6')
+
+const embeddingPollMs = Number(process.env.EMBEDDING_WORKER_POLL_MS ?? '5000')
+const embeddingBatchSize = Number(process.env.EMBEDDING_WORKER_BATCH_SIZE ?? '10')
 
 // ── Shared state ──────────────────────────────────────────────────────────────
 let shuttingDown = false
@@ -76,6 +80,25 @@ async function runImport() {
   console.warn('[worker:import] stopped')
 }
 
+// ── Embedding loop ────────────────────────────────────────────────────────────
+async function runEmbedding() {
+  console.warn('[worker:embedding] started', { pollMs: embeddingPollMs, batchSize: embeddingBatchSize })
+
+  while (!shuttingDown) {
+    try {
+      const result = await processPendingEmbeddingJobs(client, embeddingBatchSize)
+      if (result.claimed > 0) console.warn('[worker:embedding]', result)
+    }
+    catch (error) {
+      console.error('[worker:embedding] tick failed', error)
+    }
+
+    if (!shuttingDown) await sleep(embeddingPollMs)
+  }
+
+  console.warn('[worker:embedding] stopped')
+}
+
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
@@ -83,5 +106,5 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   })
 }
 
-// ── Run both loops concurrently in one process ────────────────────────────────
-await Promise.all([runViewCount(), runImport()])
+// ── Run all loops concurrently in one process ─────────────────────────────────
+await Promise.all([runViewCount(), runImport(), runEmbedding()])

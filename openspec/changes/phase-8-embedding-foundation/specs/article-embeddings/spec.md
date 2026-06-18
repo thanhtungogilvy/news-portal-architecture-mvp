@@ -35,14 +35,14 @@ The system SHALL maintain an `article_embeddings` table where each published art
 ---
 
 ### Requirement: Embedding text is built from article fields
-The embedding service SHALL build embedding text from article title, summary, content excerpt (first 500 chars, HTML stripped), source, and category name.
+The embedding service SHALL build embedding text from article title, summary, content excerpt (first 500 chars, HTML stripped), and category name.
 
 #### Scenario: All fields present
-- **WHEN** article has title, summary, content, source, and category
-- **THEN** embedding text SHALL follow format: `Title: ...\nSummary: ...\nDescription: ...\nSource: ...\nCategory: ...`
+- **WHEN** article has title, summary, content, and category
+- **THEN** embedding text SHALL follow format: `Title: ...\nSummary: ...\nDescription: ...\nCategory: ...`
 
 #### Scenario: Optional fields absent
-- **WHEN** article has no summary, source, or category
+- **WHEN** article has no summary or category
 - **THEN** embedding text SHALL omit absent field lines rather than including empty values
 
 ---

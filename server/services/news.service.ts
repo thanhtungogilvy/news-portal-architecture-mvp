@@ -15,6 +15,8 @@ import {
 } from '../repositories/news.repository'
 import { findCategoryBySlug } from '../repositories/category.repository'
 import { queueViewCountJob } from './view-count-job.service'
+import { serverSupabaseServiceRole } from '#supabase/server'
+import { enqueueEmbeddingJob } from '../repositories/embedding-job.repository'
 
 export async function listNews(
   event: H3Event,
@@ -93,7 +95,9 @@ export async function adminCreateNews(
   if (input.status === 'published' && !input.publishedAt) {
     resolved.publishedAt = new Date().toISOString()
   }
-  return insertNews(event, resolved)
+  const news = await insertNews(event, resolved)
+  await fireAndForgetEmbeddingJob(event, news.id)
+  return news
 }
 
 export async function adminUpdateNews(
@@ -105,6 +109,7 @@ export async function adminUpdateNews(
   if (!updated) {
     throw createApiError(404, 'NOT_FOUND', `News '${id}' not found`)
   }
+  await fireAndForgetEmbeddingJob(event, updated.id)
   return updated
 }
 
@@ -112,5 +117,22 @@ export async function adminDeleteNews(event: H3Event, id: string): Promise<void>
   const deleted = await deleteNews(event, id)
   if (!deleted) {
     throw createApiError(404, 'NOT_FOUND', `News '${id}' not found`)
+  }
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Enqueue an embedding job for the given article.
+ * Fire-and-forget: awaits the DB insert but never throws — failures are logged.
+ */
+async function fireAndForgetEmbeddingJob(event: H3Event, articleId: string): Promise<void> {
+  try {
+    const client = await serverSupabaseServiceRole(event)
+    await enqueueEmbeddingJob(client, articleId)
+  }
+  catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`[news.service] Failed to enqueue embedding job for article ${articleId}: ${message}`)
   }
 }

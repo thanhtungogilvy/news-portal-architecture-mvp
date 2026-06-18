@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 // ---------------------------------------------------------------------------
 // Pure logic extracted from syncBatchStatus (counts → batch status mapping)

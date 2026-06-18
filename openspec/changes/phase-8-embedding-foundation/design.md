@@ -61,7 +61,6 @@ This design covers the shared foundation: the embedding pipeline, job queue, LM 
 Title: <title>
 Summary: <summary>
 Description: <excerpt of content, first 500 chars, HTML stripped>
-Source: <source>
 Category: <category name>
 ```
 
