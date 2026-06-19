@@ -27,3 +27,15 @@
 - [x] 6.3 Manual smoke test: search for a Vietnamese phrase, verify ranked results appear
 - [x] 6.4 Test category filter: search with `?category=<slug>`, verify only that category's articles in results
 - [x] 6.5 Test 503: stop LM Studio, verify search page shows error state (not crash)
+
+## 7. Post-implementation improvements
+
+- [x] 7.1 Add `rawScore` field to `SearchResult` type; normalize `score` so top result = 1.0 in `semantic-search.service.ts`
+- [x] 7.2 Add debug mode (`?debug=1`) to `search.vue` showing raw/normalized score breakdown table per result
+- [x] 7.3 SQL migration: add `min_similarity` param to `match_article_embeddings` RPC; make `match_count` DEFAULT NULL (no hard limit) — filters at SQL level instead of top-K in service layer (`supabase/migrations/20260619000001_update_match_article_embeddings_min_similarity.sql`)
+- [x] 7.4 SQL migration: resize `article_embeddings.embedding` column from `vector(768)` to `vector(1024)` to support BGE-M3 model; truncate old embeddings; reset all embedding_jobs to pending (`supabase/migrations/20260619100000_resize_embedding_vector_1024.sql`)
+- [x] 7.5 SQL migration: replace IVFFlat index with HNSW index to fix zero-results bug caused by centroids built on empty table (`supabase/migrations/20260619110000_fix_embedding_index_ivfflat_to_hnsw.sql`)
+- [x] 7.6 Increase embedding text content cap from 500 → 2000 chars in `embedding.service.ts`; reset embedding_jobs to re-embed with more content
+- [x] 7.7 Fix debounce over-fetching: change `useAsyncData` key to static (no reactive deps), add `commitSearch()` for URL sync, debounce 400ms → 600ms — one API call per idle period, not per keystroke
+- [x] 7.8 Create `scripts/check-embeddings.ts` monitoring script; add `npm run embeddings:check` and `npm run embeddings:watch` to `package.json`
+- [x] 7.9 Create `server/api/internal/debug/embeddings.get.ts` debug endpoint for embedding coverage stats

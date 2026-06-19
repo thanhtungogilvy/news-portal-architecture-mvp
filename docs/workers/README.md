@@ -31,7 +31,7 @@ graph TB
         IMPB["import_batches / import_items"]
         EJ["embedding_jobs"]
         NEWS["news (view_count++)"]
-        AE["article_embeddings (vector 768d)"]
+        AE["article_embeddings (vector 1024d, BGE-M3)"]
     end
 
     VC --> VCT

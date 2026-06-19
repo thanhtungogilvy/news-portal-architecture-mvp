@@ -124,19 +124,18 @@ A future deployed version can replace LM Studio with a cloud provider through th
 
 The selected LM Studio embedding model has a fixed vector dimension.
 
-Example:
-
-```text
-embedding dimension = 768
-```
-
-Then the pgvector column must match:
+**Current model:** `gpustack/bge-m3-GGUF` → dimension = **1024**
 
 ```sql
-embedding vector(768)
+embedding vector(1024)
 ```
 
-Do not change the embedding model after generating embeddings unless all existing embeddings are rebuilt.
+Do not change the embedding model after generating embeddings unless:
+1. You apply a migration to resize the column (e.g. `vector(768)` → `vector(1024)`)
+2. You truncate all existing embeddings
+3. You reset all `embedding_jobs` to `pending` and re-run the worker
+
+See `supabase/migrations/20260619100000_resize_embedding_vector_1024.sql` for reference.
 
 ### Frontend must not call LM Studio directly
 
@@ -308,11 +307,11 @@ GET /api/search?q=ai education&category=technology
       id: string
       title: string
       slug: string
-      summary: string
+      summary: string | null
       thumbnailUrl: string | null
-      category: string
-      source: string | null
-      score: number
+      category: string | null
+      score: number        // normalized (top result = 1.0)
+      rawScore: number     // raw cosine similarity from pgvector
     }
   ]
 }
@@ -321,14 +320,21 @@ GET /api/search?q=ai education&category=technology
 ## Tasks
 
 ```text
-[ ] Add search repository using pgvector
-[ ] Add semantic-search.service.ts
-[ ] Add GET /api/search
-[ ] Support q param
-[ ] Support category filter
-[ ] Return article cards with similarity score
-[ ] Add search page or header search UI
-[ ] Add loading/empty/error states
+[x] Add search repository using pgvector
+[x] Add semantic-search.service.ts
+[x] Add GET /api/search
+[x] Support q param
+[x] Support category filter
+[x] Return article cards with similarity score (normalized + raw)
+[x] Add search page at /search and header search icon
+[x] Add loading/empty/error states (incl. 503 AI_UNAVAILABLE)
+[x] Debounce search input — one API call per idle period, not per keystroke
+[x] URL sync via commitSearch() on Enter/button only
+[x] Debug mode (?debug=1) showing raw/normalized score breakdown
+[x] min_similarity SQL-level filter (no hard row limit)
+[x] Migrate vector(768) → vector(1024) for BGE-M3 model
+[x] Fix IVFFlat → HNSW index
+[x] Increase embedding content cap 500 → 2000 chars
 ```
 
 ## Suggested Files

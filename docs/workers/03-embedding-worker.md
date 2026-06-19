@@ -1,6 +1,6 @@
 # Worker 3 — Embedding
 
-Generate vector embedding (768 chiều) cho từng bài viết bằng LM Studio (local) hoặc bất kỳ OpenAI-compatible API nào (production). Kết quả lưu vào `article_embeddings` để phục vụ semantic search và recommendations.
+Generate vector embedding (1024 chiều) cho từng bài viết bằng LM Studio (local) hoặc bất kỳ OpenAI-compatible API nào (production). Kết quả lưu vào `article_embeddings` để phục vụ semantic search và recommendations.
 
 ---
 
@@ -71,22 +71,29 @@ graph LR
 
 Chỉ cần đổi 2 env vars để switch provider — **không cần sửa code**:
 
-| Provider | `LMSTUDIO_BASE_URL` | `LMSTUDIO_EMBEDDING_MODEL` |
-|----------|--------------------|-----------------------------|
-| LM Studio (local) | `http://localhost:1234` | `text-embedding-nomic-embed-text-v1.5` |
-| OpenAI | `https://api.openai.com` | `text-embedding-3-small` |
-| Together AI | `https://api.together.xyz` | `togethercomputer/m2-bert-80M-8k-retrieval` |
-| Ollama (self-host) | `http://your-server:11434/v1` | `nomic-embed-text` |
+| Provider | `LMSTUDIO_BASE_URL` | `LMSTUDIO_EMBEDDING_MODEL` | Dim |
+|----------|--------------------|-----------------------------|-----|
+| LM Studio (local) — **current** | `http://localhost:1234` | `gpustack/bge-m3-GGUF` | 1024 |
+| OpenAI | `https://api.openai.com` | `text-embedding-3-small` | 1536 |
+| Together AI | `https://api.together.xyz` | `togethercomputer/m2-bert-80M-8k-retrieval` | 768 |
+| Ollama (self-host) | `http://your-server:11434/v1` | `nomic-embed-text` | 768 |
+
+> ⚠️ **Đổi model = đổi dimension** → cần migration SQL để resize `vector(N)` column, truncate embeddings cũ, reset tất cả jobs về `pending`. Xem `supabase/migrations/20260619100000_resize_embedding_vector_1024.sql`.
 
 ---
 
 ## Input text format
 
 ```
-{title}\n\n{content}
+Title: {title}
+Summary: {summary}
+Description: {content_first_2000_chars}
+Category: {category_name}
 ```
 
-Content được strip HTML trước khi gửi. Tổng input truncate ở ~8000 ký tự để không vượt context window của model.
+Content được strip HTML trước khi gửi và truncate ở **2000 ký tự** để cân bằng giữa coverage và token budget. Các field null/empty bị bỏ qua.
+
+See `server/services/embedding.service.ts` → `buildEmbeddingText()`.
 
 ---
 
@@ -108,7 +115,7 @@ Content được strip HTML trước khi gửi. Tổng input truncate ở ~8000 
 | Column | Type | Mô tả |
 |--------|------|-------|
 | `article_id` | uuid | PK, FK → `news.id` |
-| `embedding` | `vector(768)` | pgvector — 768 chiều |
+| `embedding` | `vector(1024)` | pgvector — 1024 chiều (BGE-M3) |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
 
@@ -165,13 +172,22 @@ npm run worker:embedding
 npm run worker:all
 ```
 
-### Backfill (manual)
+### Backfill & Model switch (manual)
 
-Khi có bài viết chưa có embedding (import cũ, hoặc sau khi reset):
+Khi có bài viết chưa có embedding, hoặc sau khi đổi model:
 
 ```bash
-# Script backfill enqueue tất cả article chưa có embedding
-npx jiti scripts/backfill-embeddings.ts
+# 1. Reset tất cả jobs về pending (Supabase SQL Editor)
+UPDATE public.embedding_jobs
+SET status = 'pending', attempt_count = 0,
+    started_at = NULL, finished_at = NULL, last_error = NULL
+WHERE status = 'completed';
+
+# 2. Chạy worker để re-embed
+npm run worker:embedding
+
+# 3. Theo dõi tiến trình
+npm run embeddings:watch
 ```
 
 ### Production (pg_cron)
@@ -217,10 +233,38 @@ Không cần thay đổi code — chỉ đổi env vars.
 
 ## Monitoring
 
-Admin dashboard (`/admin`) hiển thị live embedding queue stats:
+### CLI (local dev)
 
-```
-[emb] pending=3 / proc=1 / failed=0
+```bash
+# Snapshot một lần
+npm run embeddings:check
+
+# Watch mode — refresh mỗi 5s
+npm run embeddings:watch
 ```
 
-Polling mỗi 5 giây từ `/api/admin/worker-status`.
+Output mẫu:
+```
+═══════════════════════════════════
+  Embedding Monitor
+═══════════════════════════════════
+  Published articles : 323
+  Total embeddings   : 323
+  Coverage           : [████████████████████] 100%
+
+  Model Distribution:
+    323 → gpustack/bge-m3-GGUF
+
+  Job Queue:
+    completed : 323
+```
+
+Script: `scripts/check-embeddings.ts`
+
+### Debug API
+
+`GET /api/internal/debug/embeddings` trả về coverage stats, model distribution, và job queue status dạng JSON.
+
+### Admin dashboard
+
+`/admin` hiển thị live embedding queue stats (poll mỗi 5s từ `/api/admin/worker-status`).
