@@ -5,6 +5,7 @@ import { selectArticleIdsToEnqueue } from '../../../server/services/embedding-ba
 import {
   claimPendingImportItems,
   markImportItemPublished,
+  markImportItemSkipped,
   scheduleImportItemRetry,
   markImportItemFailed,
   insertImportDlqItem,
@@ -74,9 +75,9 @@ async function processOneItem(
     // 1. Dedup check — reuse news_id if this URL was already imported
     const existing = await findPublishedImportByUrl(client, item.source_url)
     if (existing) {
-      await markImportItemPublished(client, item.id, existing.news_id)
+      await markImportItemSkipped(client, item.id, existing.news_id)
       await syncBatchStatus(client, item.batch_id)
-      console.warn(`[import-svc] dedup item ${item.id} → reused news ${existing.news_id}`)
+      console.warn(`[import-svc] dedup(url) item ${item.id} → skipped, reused news ${existing.news_id}`)
       return 'published'
     }
 
@@ -98,10 +99,12 @@ async function processOneItem(
     let news: { id: string, slug: string }
 
     // Check if a news article with this slug already exists
+    let isSlugDedup = false
     const existingBySlug = await findNewsBySlugForImport(client, slug)
     if (existingBySlug) {
       news = { id: existingBySlug.id, slug }
-      console.warn(`[import-svc] slug dedup item ${item.id} → reused news ${existingBySlug.id} (slug: ${slug})`)
+      isSlugDedup = true
+      console.warn(`[import-svc] dedup(slug) item ${item.id} → skipped, reused news ${existingBySlug.id} (slug: ${slug})`)
     }
     else {
       try {
@@ -121,10 +124,10 @@ async function processOneItem(
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.startsWith('SLUG_CONFLICT')) {
           // Race condition: slug was inserted between our check and insert
-          // Re-check and reuse the existing news_id
           const raceExisting = await findNewsBySlugForImport(client, slug)
           if (raceExisting) {
             news = { id: raceExisting.id, slug }
+            isSlugDedup = true
           }
           else {
             // Truly different article with same slug — append suffix
@@ -148,12 +151,22 @@ async function processOneItem(
       }
     }
 
-    // 5. Mark item published
-    await markImportItemPublished(client, item.id, news.id)
-  await ensureEmbeddingJob(client, news.id)
+    // 5. Mark item published or skipped (slug dedup reused existing article)
+    if (isSlugDedup) {
+      await markImportItemSkipped(client, item.id, news.id)
+    }
+    else {
+      await markImportItemPublished(client, item.id, news.id)
+      await ensureEmbeddingJob(client, news.id)
+    }
     await syncBatchStatus(client, item.batch_id)
 
-    console.warn(`[import-svc] published item ${item.id} → news ${news.id} (${news.slug})`)
+    if (isSlugDedup) {
+      console.warn(`[import-svc] skipped item ${item.id} → reused news ${news.id} (${news.slug})`)
+    }
+    else {
+      console.warn(`[import-svc] published item ${item.id} → news ${news.id} (${news.slug})`)
+    }
     return 'published'
   }
   catch (err: unknown) {

@@ -12,7 +12,7 @@ type ImportBatchRow = Tables<'import_batches'>
 type ImportItemRow = Tables<'import_items'>
 
 function emptyCounts(): ImportBatchCountsDto {
-  return { pending: 0, processing: 0, published: 0, failed: 0 }
+  return { pending: 0, processing: 0, published: 0, skipped: 0, failed: 0 }
 }
 
 function mapBatchRow(row: ImportBatchRow & { categories?: unknown }, counts: ImportBatchCountsDto): ImportBatchDto {
@@ -55,6 +55,7 @@ function aggregateCounts(items: Array<Pick<ImportItemRow, 'status'>>): ImportBat
     if (item.status === 'pending') counts.pending += 1
     if (item.status === 'processing') counts.processing += 1
     if (item.status === 'published') counts.published += 1
+    if (item.status === 'skipped') counts.skipped += 1
     if (item.status === 'failed') counts.failed += 1
     return counts
   }, emptyCounts())

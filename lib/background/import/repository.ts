@@ -77,6 +77,22 @@ export async function markImportItemPublished(
 }
 
 // ---------------------------------------------------------------------------
+// Mark item skipped (dedup — URL or slug already exists in DB)
+// ---------------------------------------------------------------------------
+export async function markImportItemSkipped(
+  client: AppSupabaseClient,
+  itemId: string,
+  newsId: string,
+): Promise<void> {
+  const now = new Date().toISOString()
+  const { error } = await client
+    .from('import_items')
+    .update({ status: 'skipped', news_id: newsId, finished_at: now, updated_at: now, last_error: null })
+    .eq('id', itemId)
+  if (error) throw new Error(`[import-repo] mark skipped failed: ${error.message}`)
+}
+
+// ---------------------------------------------------------------------------
 // Schedule retry — back to pending with updated next_retry_at + attempt_count
 // ---------------------------------------------------------------------------
 export async function scheduleImportItemRetry(
@@ -172,13 +188,14 @@ export async function syncBatchStatus(
   if (error) throw new Error(`[import-repo] syncBatchStatus fetch failed: ${error.message}`)
   if (!data || data.length === 0) return
 
-  const counts = { pending: 0, processing: 0, published: 0, failed: 0 }
+  const counts = { pending: 0, processing: 0, published: 0, skipped: 0, failed: 0 }
   for (const row of data) {
     const s = row.status as keyof typeof counts
     if (s in counts) counts[s] += 1
   }
 
   // Determine batch status
+  // skipped items are treated as "done" (they reference an existing article)
   const active = counts.pending + counts.processing
   let newStatus: string
 
@@ -186,7 +203,7 @@ export async function syncBatchStatus(
     newStatus = 'processing'
   } else if (counts.failed === 0) {
     newStatus = 'completed'
-  } else if (counts.published === 0) {
+  } else if (counts.published === 0 && counts.skipped === 0) {
     newStatus = 'failed'
   } else {
     newStatus = 'completed_with_failures'

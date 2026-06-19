@@ -39,6 +39,7 @@ const FILTER_TABS: { label: string, value: ImportItemStatus | undefined }[] = [
   { label: 'Pending', value: 'pending' },
   { label: 'Processing', value: 'processing' },
   { label: 'Published', value: 'published' },
+  { label: 'Skipped', value: 'skipped' },
   { label: 'Failed', value: 'failed' },
 ]
 
@@ -172,6 +173,13 @@ watch(statusFilter, () => { page.value = 1 })
             </div>
           </div>
           <div class="flex items-center gap-2.5">
+            <span class="size-2.5 shrink-0 rounded-full bg-smoke-400" />
+            <div>
+              <p class="text-xl font-semibold leading-none text-title">{{ batch.counts.skipped }}</p>
+              <p class="mt-1 text-[11px] text-body">Skipped (dedup)</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5">
             <span class="size-2.5 shrink-0 rounded-full bg-error" />
             <div>
               <p class="text-xl font-semibold leading-none text-title">{{ batch.counts.failed }}</p>
@@ -183,13 +191,6 @@ watch(statusFilter, () => { page.value = 1 })
             <div>
               <p class="text-xl font-semibold leading-none text-title">{{ batch.counts.processing }}</p>
               <p class="mt-1 text-[11px] text-body">Processing</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2.5">
-            <span class="size-2.5 shrink-0 rounded-full bg-smoke-400" />
-            <div>
-              <p class="text-xl font-semibold leading-none text-title">{{ batch.counts.pending }}</p>
-              <p class="mt-1 text-[11px] text-body">Pending</p>
             </div>
           </div>
         </div>
@@ -210,6 +211,12 @@ watch(statusFilter, () => { page.value = 1 })
               class="ml-1 rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white"
             >
               {{ batch.counts.failed }}
+            </span>
+            <span
+              v-if="tab.value === 'skipped' && batch.counts.skipped > 0"
+              class="ml-1 rounded-full bg-smoke-400 px-1.5 py-0.5 text-[9px] font-bold text-white"
+            >
+              {{ batch.counts.skipped }}
             </span>
           </button>
         </div>
@@ -280,6 +287,7 @@ watch(statusFilter, () => { page.value = 1 })
                     :class="clsx(
                       'inline-flex size-5 items-center justify-center rounded-full transition-colors',
                       item.status === 'published' ? 'bg-success-light text-success-dark'
+                      : item.status === 'skipped' ? 'bg-smoke-200 text-body'
                       : item.status === 'failed' ? 'bg-error-light text-error-dark'
                       : 'bg-smoke-100 text-smoke-400'
                     )"
@@ -287,6 +295,10 @@ watch(statusFilter, () => { page.value = 1 })
                   >
                     <svg v-if="item.status === 'published'" class="size-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <!-- Skipped: dash/minus icon -->
+                    <svg v-else-if="item.status === 'skipped'" class="size-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
                     </svg>
                     <svg v-else-if="item.status === 'failed'" class="size-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -302,6 +314,7 @@ watch(statusFilter, () => { page.value = 1 })
                       item.status === 'pending' ? 'warning'
                       : item.status === 'processing' ? 'primary'
                       : item.status === 'published' ? 'success'
+                      : item.status === 'skipped' ? 'default'
                       : 'danger'
                     "
                   >{{ item.status }}</UiBadge>

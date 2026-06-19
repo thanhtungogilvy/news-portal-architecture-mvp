@@ -7,12 +7,13 @@ export type ImportBatchStatus =
   | 'completed_with_failures'
   | 'failed'
 
-export type ImportItemStatus = 'pending' | 'processing' | 'published' | 'failed'
+export type ImportItemStatus = 'pending' | 'processing' | 'published' | 'skipped' | 'failed'
 
 export interface ImportBatchCountsDto {
   pending: number
   processing: number
   published: number
+  skipped: number
   failed: number
 }
 
