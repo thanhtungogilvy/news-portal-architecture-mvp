@@ -46,10 +46,11 @@ type WorkerStatus = {
   refreshedAt: string
 }
 
-type CounterRow = {
-  label: string
-  value: number
-  tone: 'default' | 'success' | 'warning' | 'danger'
+type WorkerActivityEntry = {
+  id: string
+  timestamp: string
+  level: 'info' | 'success' | 'warning' | 'error'
+  text: string
 }
 
 const { data: statsData, status: statsStatus } = useFetch<ApiSuccess<AdminStats>>('/api/admin/stats', {
@@ -112,22 +113,11 @@ function statusColor(status: string): 'success' | 'warning' | 'danger' {
   return 'danger'
 }
 
-function workerBadgeColor(mode: 'idle' | 'running' | 'blocked'): 'success' | 'warning' | 'danger' {
-  if (mode === 'idle') return 'success'
-  if (mode === 'running') return 'warning'
-  return 'danger'
-}
-
 function embeddingWorkerMode(): 'idle' | 'running' | 'blocked' {
   if (!workerStatus.value) return 'running'
   if (workerStatus.value.embedding.jobs.failed > 0) return 'blocked'
   if (workerStatus.value.embedding.jobs.pending > 0 || workerStatus.value.embedding.jobs.processing > 0) return 'running'
   return 'idle'
-}
-
-function latestRefreshLabel(value: string | undefined): string {
-  if (!value || value.startsWith('1970-01-01')) return 'Refreshing...'
-  return dayjs(value).fromNow()
 }
 
 function refreshTimeLabel(value: string | undefined): string {
@@ -136,66 +126,108 @@ function refreshTimeLabel(value: string | undefined): string {
 }
 
 function compactError(message: string | null | undefined): string {
-  if (!message) return 'No recent failures.'
-  return message.length > 160 ? `${message.slice(0, 157)}...` : message
+  if (!message) return ''
+  return message.length > 200 ? `${message.slice(0, 197)}...` : message
 }
 
-function buildQueueRows(counts: QueueCounts): CounterRow[] {
+const workerActivityLog = ref<WorkerActivityEntry[]>([])
+let previousWorkerSnapshot: WorkerStatus | null = null
+let activitySequence = 0
+
+function pushWorkerActivity(level: WorkerActivityEntry['level'], text: string): void {
+  activitySequence += 1
+  const stamp = dayjs().format('HH:mm:ss')
+  workerActivityLog.value = [
+    {
+      id: `${stamp}-${activitySequence}`,
+      timestamp: stamp,
+      level,
+      text,
+    },
+    ...workerActivityLog.value,
+  ].slice(0, 50)
+}
+
+watch(workerStatus, (current) => {
+  if (!current || !hasWorkerStatusSnapshot.value) {
+    return
+  }
+
+  if (!previousWorkerSnapshot) {
+    pushWorkerActivity('info', `[boot] snapshot loaded coverage=${current.embedding.embeddedArticles}/${current.embedding.publishedArticles} pending=${current.embedding.jobs.pending} processing=${current.embedding.jobs.processing}`)
+
+    if (current.embedding.latestFailure) {
+      pushWorkerActivity('error', `[embedding] restored latest failure ${compactError(current.embedding.latestFailure)}`)
+    }
+    else {
+      pushWorkerActivity('success', '[system] no recent embedding worker failures')
+    }
+
+    previousWorkerSnapshot = {
+      ...current,
+      embedding: { ...current.embedding, jobs: { ...current.embedding.jobs } },
+      import: { ...current.import, items: { ...current.import.items } },
+      viewCount: { ...current.viewCount, jobs: { ...current.viewCount.jobs } },
+    }
+    return
+  }
+
+  const previous = previousWorkerSnapshot
+
+  if (current.embedding.embeddedArticles > previous.embedding.embeddedArticles) {
+    const delta = current.embedding.embeddedArticles - previous.embedding.embeddedArticles
+    pushWorkerActivity('success', `[embedding] completed +${delta} -> ${current.embedding.embeddedArticles}/${current.embedding.publishedArticles} (${current.embedding.coveragePercent}%)`)
+  }
+
+  if (current.embedding.jobs.processing > previous.embedding.jobs.processing) {
+    pushWorkerActivity('warning', `[embedding] workers claimed ${current.embedding.jobs.processing} job(s) in processing`)
+  }
+
+  if (current.embedding.jobs.pending > previous.embedding.jobs.pending) {
+    const delta = current.embedding.jobs.pending - previous.embedding.jobs.pending
+    pushWorkerActivity('info', `[embedding] queued +${delta} pending job(s)`)
+  }
+
+  if (current.import.items.processing !== previous.import.items.processing || current.import.activeBatches !== previous.import.activeBatches) {
+    pushWorkerActivity('info', `[import] processing=${current.import.items.processing} active-batches=${current.import.activeBatches}`)
+  }
+
+  if (current.viewCount.jobs.processing !== previous.viewCount.jobs.processing) {
+    pushWorkerActivity('info', `[views] processing=${current.viewCount.jobs.processing}`)
+  }
+
+  if (current.embedding.jobs.failed > previous.embedding.jobs.failed) {
+    pushWorkerActivity('error', `[embedding] failed jobs=${current.embedding.jobs.failed} ${compactError(current.embedding.latestFailure)}`)
+  }
+
+  if (
+    current.embedding.coveragePercent === 100
+    && previous.embedding.coveragePercent < 100
+  ) {
+    pushWorkerActivity('success', `[embedding] coverage reached 100% (${current.embedding.embeddedArticles}/${current.embedding.publishedArticles})`)
+  }
+
+  previousWorkerSnapshot = {
+    ...current,
+    embedding: { ...current.embedding, jobs: { ...current.embedding.jobs } },
+    import: { ...current.import, items: { ...current.import.items } },
+    viewCount: { ...current.viewCount, jobs: { ...current.viewCount.jobs } },
+  }
+}, { immediate: true })
+
+const activityLines = computed<WorkerActivityEntry[]>(() => {
+  if (workerActivityLog.value.length > 0) {
+    return workerActivityLog.value
+  }
+
   return [
-    { label: 'pending', value: counts.pending, tone: counts.pending > 0 ? 'warning' : 'default' },
-    { label: 'processing', value: counts.processing, tone: counts.processing > 0 ? 'warning' : 'default' },
-    { label: 'completed', value: counts.completed, tone: counts.completed > 0 ? 'success' : 'default' },
-    { label: 'failed', value: counts.failed, tone: counts.failed > 0 ? 'danger' : 'default' },
+    {
+      id: 'boot-awaiting',
+      timestamp: dayjs().format('HH:mm:ss'),
+      level: 'info',
+      text: 'awaiting worker telemetry...',
+    },
   ]
-}
-
-function buildImportRows(counts: ImportQueueCounts): CounterRow[] {
-  return [
-    { label: 'pending', value: counts.pending, tone: counts.pending > 0 ? 'warning' : 'default' },
-    { label: 'processing', value: counts.processing, tone: counts.processing > 0 ? 'warning' : 'default' },
-    { label: 'published', value: counts.published, tone: counts.published > 0 ? 'success' : 'default' },
-    { label: 'failed', value: counts.failed, tone: counts.failed > 0 ? 'danger' : 'default' },
-  ]
-}
-
-function counterValueClass(tone: CounterRow['tone']): string {
-  return clsx('font-mono text-lg font-semibold tabular-nums', {
-    'text-white': tone === 'default',
-    'text-[#87f0c1]': tone === 'success',
-    'text-[#ffd58a]': tone === 'warning',
-    'text-[#ff9f9f]': tone === 'danger',
-  })
-}
-
-const embeddingQueueRows = computed(() => buildQueueRows(workerStatus.value?.embedding.jobs ?? { pending: 0, processing: 0, completed: 0, failed: 0 }))
-const viewCountQueueRows = computed(() => buildQueueRows(workerStatus.value?.viewCount.jobs ?? { pending: 0, processing: 0, completed: 0, failed: 0 }))
-const importQueueRows = computed(() => buildImportRows(workerStatus.value?.import.items ?? { pending: 0, processing: 0, published: 0, failed: 0 }))
-
-const embeddingQueueTotal = computed(() => {
-  const jobs = workerStatus.value?.embedding.jobs
-  return jobs ? jobs.pending + jobs.processing + jobs.completed + jobs.failed : 0
-})
-
-const activityLines = computed(() => {
-  if (!workerStatus.value) {
-    return ['booting worker monitor...', 'awaiting first metrics payload...']
-  }
-
-  const lines = [
-    `[embedding] coverage ${workerStatus.value.embedding.embeddedArticles}/${workerStatus.value.embedding.publishedArticles} (${workerStatus.value.embedding.coveragePercent}%)`,
-    `[embedding] queue pending=${workerStatus.value.embedding.jobs.pending} processing=${workerStatus.value.embedding.jobs.processing} failed=${workerStatus.value.embedding.jobs.failed}`,
-    `[import] items pending=${workerStatus.value.import.items.pending} processing=${workerStatus.value.import.items.processing} active-batches=${workerStatus.value.import.activeBatches}`,
-    `[views] queue pending=${workerStatus.value.viewCount.jobs.pending} processing=${workerStatus.value.viewCount.jobs.processing}`,
-  ]
-
-  if (workerStatus.value.embedding.latestFailure) {
-    lines.push(`[error] ${compactError(workerStatus.value.embedding.latestFailure)}`)
-  }
-  else {
-    lines.push('[system] no recent embedding worker failures')
-  }
-
-  return lines
 })
 </script>
 
@@ -264,153 +296,147 @@ const activityLines = computed(() => {
       </NuxtLink>
     </div>
 
-    <section class="overflow-hidden rounded-[24px] border border-dark-100 bg-dark-900 text-white shadow-product">
-      <div class="border-b border-dark-50/70 bg-dark-950/80 px-6 py-5">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p class="font-mono text-[11px] uppercase tracking-[0.2em] text-blue-300">ops / background workers</p>
-            <h2 class="mt-2 font-display text-2xl font-semibold tracking-apple-tight text-white">Runtime Monitor</h2>
-            <p class="mt-2 max-w-2xl text-sm text-slate-300">
-              Live queue health for embedding, import, and view-count workers. Auto-refresh every 5 seconds.
-            </p>
-          </div>
+    <!-- Worker Debug Console -->
+    <section class="overflow-hidden rounded-[18px] border border-dark-100 bg-[#040404] text-white shadow-product">
 
-          <div class="flex items-center gap-3 self-start rounded-full border border-white/10 bg-white/5 px-4 py-2">
-            <span class="h-2.5 w-2.5 rounded-full" :class="clsx({
-              'bg-[#87f0c1] shadow-[0_0_18px_rgba(135,240,193,0.8)]': embeddingWorkerMode() === 'idle',
-              'bg-[#ffd58a] shadow-[0_0_18px_rgba(255,213,138,0.8)]': embeddingWorkerMode() === 'running',
-              'bg-[#ff9f9f] shadow-[0_0_18px_rgba(255,159,159,0.8)]': embeddingWorkerMode() === 'blocked',
-              'animate-pulse': workerStatusRefreshing,
-            })" />
-            <div>
-              <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">embedding status</p>
-              <p class="font-mono text-sm text-white">{{ embeddingWorkerMode() }}</p>
-            </div>
-            <div class="h-8 w-px bg-white/10" />
-            <div>
-              <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">{{ workerStatusRefreshing ? 'sync state' : 'last refresh' }}</p>
-              <p class="font-mono text-sm text-white">{{ workerStatusRefreshing ? 'syncing...' : refreshTimeLabel(workerStatus?.refreshedAt) }}</p>
-            </div>
-          </div>
+      <!-- Titlebar -->
+      <div class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
+        <div class="flex items-center gap-3">
+          <span
+            class="h-2.5 w-2.5 shrink-0 rounded-full"
+            :class="clsx({
+              'bg-[#87f0c1] shadow-[0_0_12px_rgba(135,240,193,0.9)]': embeddingWorkerMode() === 'idle',
+              'bg-[#ffd58a] shadow-[0_0_12px_rgba(255,213,138,0.9)] animate-pulse': embeddingWorkerMode() === 'running',
+              'bg-[#ff9f9f] shadow-[0_0_12px_rgba(255,159,159,0.9)] animate-pulse': embeddingWorkerMode() === 'blocked',
+            })"
+          />
+          <span class="font-mono text-[13px] font-medium text-white">worker:all</span>
+          <span
+            class="rounded px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em]"
+            :class="clsx({
+              'bg-[#87f0c1]/10 text-[#87f0c1]': embeddingWorkerMode() === 'idle',
+              'bg-[#ffd58a]/10 text-[#ffd58a]': embeddingWorkerMode() === 'running',
+              'bg-[#ff9f9f]/10 text-[#ff9f9f]': embeddingWorkerMode() === 'blocked',
+            })"
+          >{{ embeddingWorkerMode() }}</span>
+        </div>
+
+        <div class="flex items-center gap-4 font-mono text-[12px]">
+          <template v-if="hasWorkerStatusSnapshot">
+            <span class="tabular-nums text-slate-200">
+              {{ workerStatus?.embedding.embeddedArticles }}/{{ workerStatus?.embedding.publishedArticles }}
+              <span class="ml-1 text-slate-500">embedded</span>
+            </span>
+            <span class="text-slate-600">·</span>
+            <span
+              class="tabular-nums font-semibold"
+              :class="workerStatus?.embedding.coveragePercent === 100 ? 'text-[#87f0c1]' : 'text-slate-300'"
+            >{{ workerStatus?.embedding.coveragePercent ?? 0 }}%</span>
+            <span class="text-slate-600">·</span>
+            <span
+              class="tabular-nums"
+              :class="workerStatusRefreshing ? 'text-[#ffd58a]' : 'text-slate-500'"
+            >{{ workerStatusRefreshing ? 'syncing...' : refreshTimeLabel(workerStatus?.refreshedAt) }}</span>
+          </template>
+          <template v-else>
+            <span class="font-mono text-[12px] text-slate-600">connecting...</span>
+          </template>
         </div>
       </div>
 
-      <div class="px-6 py-6">
-        <div v-if="workerStatusInitialPending" class="space-y-4">
-          <UiSkeleton class="h-4 w-40 bg-white/10" />
-          <UiSkeleton class="h-3 w-full rounded-full bg-white/10" />
-          <div class="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <UiSkeleton class="h-72 w-full rounded-[22px] bg-white/10" />
-            <UiSkeleton class="h-72 w-full rounded-[22px] bg-white/10" />
-          </div>
+      <!-- Embedding progress bar (2px) -->
+      <div class="h-0.5 bg-white/5">
+        <div
+          class="h-full transition-all duration-700"
+          :class="workerStatus?.embedding.coveragePercent === 100 ? 'bg-[#87f0c1]' : 'bg-blue-400'"
+          :style="{ width: `${workerStatus?.embedding.coveragePercent ?? 0}%` }"
+        />
+      </div>
+
+      <!-- Log stream -->
+      <div class="h-[340px] overflow-y-auto bg-[#020202] font-mono text-[13px] leading-6 text-slate-200">
+        <div v-if="workerStatusInitialPending" class="flex h-full items-center justify-center">
+          <span class="font-mono text-[13px] text-slate-600">connecting to worker telemetry...</span>
         </div>
 
-        <div v-else class="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <div class="space-y-4 rounded-[22px] border border-white/8 bg-white/[0.03] p-5">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">embedding coverage</p>
-                <div class="mt-2 flex items-end gap-3">
-                  <p class="font-mono text-4xl font-semibold text-white tabular-nums">{{ workerStatus?.embedding.coveragePercent ?? 0 }}%</p>
-                  <p class="pb-1 font-mono text-sm text-slate-400">
-                    {{ workerStatus?.embedding.embeddedArticles ?? 0 }}/{{ workerStatus?.embedding.publishedArticles ?? 0 }} articles
-                  </p>
-                </div>
-              </div>
-
-              <div class="rounded-2xl border border-white/8 bg-dark-950/60 px-4 py-3">
-                <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-500">job snapshots</p>
-                <p class="mt-1 font-mono text-lg text-white tabular-nums">{{ embeddingQueueTotal }}</p>
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <div class="h-3 overflow-hidden rounded-full bg-white/10">
-                <div
-                  class="h-full rounded-full bg-gradient-to-r from-blue-400 via-[#87f0c1] to-[#d4ffed] transition-all duration-500"
-                  :style="{ width: `${workerStatus?.embedding.coveragePercent ?? 0}%` }"
-                />
-              </div>
-              <div class="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                <span>queue progress</span>
-                <span>{{ latestRefreshLabel(workerStatus?.refreshedAt) }}</span>
-              </div>
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-3">
-              <div class="rounded-[18px] border border-white/8 bg-dark-950/70 p-4">
-                <div class="mb-4 flex items-center justify-between gap-3">
-                  <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">embedding queue</p>
-                  <UiBadge :color="workerBadgeColor(embeddingWorkerMode())">{{ embeddingWorkerMode() }}</UiBadge>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div v-for="row in embeddingQueueRows" :key="row.label">
-                    <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">{{ row.label }}</p>
-                    <p :class="counterValueClass(row.tone)">{{ row.value }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="rounded-[18px] border border-white/8 bg-dark-950/70 p-4">
-                <div class="mb-4 flex items-center justify-between gap-3">
-                  <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">import queue</p>
-                  <span class="font-mono text-xs text-slate-500">batches {{ workerStatus?.import.activeBatches ?? 0 }}</span>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div v-for="row in importQueueRows" :key="row.label">
-                    <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">{{ row.label }}</p>
-                    <p :class="counterValueClass(row.tone)">{{ row.value }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="rounded-[18px] border border-white/8 bg-dark-950/70 p-4">
-                <div class="mb-4 flex items-center justify-between gap-3">
-                  <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">view queue</p>
-                  <span class="font-mono text-xs text-slate-500">jobs</span>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div v-for="row in viewCountQueueRows" :key="row.label">
-                    <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">{{ row.label }}</p>
-                    <p :class="counterValueClass(row.tone)">{{ row.value }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <template v-else>
+          <div
+            v-for="line in activityLines"
+            :key="line.id"
+            class="flex items-baseline gap-0 border-b border-white/[0.04] px-5 py-1.5 last:border-b-0 hover:bg-white/[0.02]"
+          >
+            <span class="mr-4 shrink-0 tabular-nums text-slate-600">{{ line.timestamp }}</span>
+            <span
+              class="mr-3 w-[58px] shrink-0 text-right text-[11px] uppercase tracking-[0.08em]"
+              :class="clsx({
+                'text-slate-600': line.level === 'info',
+                'text-[#87f0c1]': line.level === 'success',
+                'text-[#ffd58a]': line.level === 'warning',
+                'text-[#ff9f9f]': line.level === 'error',
+              })"
+            >{{ line.level }}</span>
+            <span
+              class="min-w-0 break-words"
+              :class="clsx({
+                'text-slate-300': line.level === 'info',
+                'text-[#87f0c1]': line.level === 'success',
+                'text-[#ffd58a]': line.level === 'warning',
+                'text-[#ff9f9f]': line.level === 'error',
+              })"
+            >{{ line.text }}</span>
           </div>
+        </template>
+      </div>
 
-          <div class="rounded-[22px] border border-white/8 bg-dark-950/85 p-5">
-            <div class="flex items-center justify-between gap-3 border-b border-white/8 pb-3">
-              <div>
-                <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">debug trace</p>
-                <p class="mt-1 text-sm text-slate-300">Latest worker telemetry snapshot.</p>
-              </div>
-              <div class="rounded-full border border-white/8 bg-white/5 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                live
-              </div>
-            </div>
-
-            <div class="mt-4 space-y-3 font-mono text-sm">
-              <div
-                v-for="(line, index) in activityLines"
-                :key="`${index}-${line}`"
-                class="rounded-2xl border px-3 py-2"
-                :class="clsx(
-                  'border-white/6 bg-white/[0.03] text-slate-200',
-                  line.startsWith('[error]') && 'border-error-dark/40 bg-error-dark/10 text-[#ffb6b6]',
-                  line.startsWith('[system]') && 'text-[#87f0c1]',
-                )"
-              >
-                {{ line }}
-              </div>
-            </div>
-
-            <div class="mt-5 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-              <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-500">latest embedding failure</p>
-              <p class="mt-2 font-mono text-sm leading-6 text-slate-300">
-                {{ compactError(workerStatus?.embedding.latestFailure) }}
-              </p>
-            </div>
+      <!-- Stats strip -->
+      <div class="border-t border-white/10 bg-dark-950/60 px-5 py-3">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[12px]">
+          <!-- Embedding -->
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600">[emb]</span>
+            <span class="text-slate-500">pending</span>
+            <span :class="(workerStatus?.embedding.jobs.pending ?? 0) > 0 ? 'text-[#ffd58a]' : 'text-slate-400'">
+              {{ workerStatus?.embedding.jobs.pending ?? 0 }}
+            </span>
+            <span class="text-slate-600">/</span>
+            <span class="text-slate-500">proc</span>
+            <span :class="(workerStatus?.embedding.jobs.processing ?? 0) > 0 ? 'text-[#ffd58a]' : 'text-slate-400'">
+              {{ workerStatus?.embedding.jobs.processing ?? 0 }}
+            </span>
+            <span class="text-slate-600">/</span>
+            <span class="text-slate-500">failed</span>
+            <span :class="(workerStatus?.embedding.jobs.failed ?? 0) > 0 ? 'text-[#ff9f9f]' : 'text-slate-400'">
+              {{ workerStatus?.embedding.jobs.failed ?? 0 }}
+            </span>
+          </div>
+          <span class="hidden text-slate-700 lg:inline">|</span>
+          <!-- Import -->
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600">[imp]</span>
+            <span class="text-slate-500">pending</span>
+            <span :class="(workerStatus?.import.items.pending ?? 0) > 0 ? 'text-[#ffd58a]' : 'text-slate-400'">
+              {{ workerStatus?.import.items.pending ?? 0 }}
+            </span>
+            <span class="text-slate-600">/</span>
+            <span class="text-slate-500">batches</span>
+            <span :class="(workerStatus?.import.activeBatches ?? 0) > 0 ? 'text-[#ffd58a]' : 'text-slate-400'">
+              {{ workerStatus?.import.activeBatches ?? 0 }}
+            </span>
+          </div>
+          <span class="hidden text-slate-700 lg:inline">|</span>
+          <!-- View count -->
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600">[view]</span>
+            <span class="text-slate-500">pending</span>
+            <span :class="(workerStatus?.viewCount.jobs.pending ?? 0) > 0 ? 'text-[#ffd58a]' : 'text-slate-400'">
+              {{ workerStatus?.viewCount.jobs.pending ?? 0 }}
+            </span>
+          </div>
+          <span class="hidden text-slate-700 lg:inline">|</span>
+          <!-- Latest failure inline -->
+          <div v-if="workerStatus?.embedding.latestFailure" class="flex items-center gap-2">
+            <span class="text-slate-600">[err]</span>
+            <span class="max-w-[280px] truncate text-[#ff9f9f]">{{ compactError(workerStatus?.embedding.latestFailure) }}</span>
           </div>
         </div>
       </div>

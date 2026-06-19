@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json } from '../../../app/types/database.types'
+import { enqueueEmbeddingJob } from '../../../server/repositories/embedding-job.repository'
+import { selectArticleIdsToEnqueue } from '../../../server/services/embedding-backfill.service'
 import {
   claimPendingImportItems,
   markImportItemPublished,
@@ -30,6 +32,26 @@ const BACKOFF_MINUTES = [1, 5]
 function nextRetryAt(attemptCount: number): string {
   const minutes = BACKOFF_MINUTES[attemptCount - 1] ?? BACKOFF_MINUTES[BACKOFF_MINUTES.length - 1]!
   return new Date(Date.now() + minutes * 60 * 1000).toISOString()
+}
+
+async function ensureEmbeddingJob(client: AppSupabaseClient, articleId: string): Promise<void> {
+  const { data: existingJobs, error } = await client
+    .from('embedding_jobs')
+    .select('article_id, status')
+    .eq('article_id', articleId)
+    .in('status', ['pending', 'processing', 'completed'])
+
+  if (error) {
+    throw new Error(`[import-svc] failed to inspect embedding jobs for article ${articleId}: ${error.message}`)
+  }
+
+  const toEnqueue = selectArticleIdsToEnqueue([articleId], existingJobs ?? [])
+
+  if (toEnqueue.length === 0) {
+    return
+  }
+
+  await enqueueEmbeddingJob(client, articleId)
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +150,7 @@ async function processOneItem(
 
     // 5. Mark item published
     await markImportItemPublished(client, item.id, news.id)
+  await ensureEmbeddingJob(client, news.id)
     await syncBatchStatus(client, item.batch_id)
 
     console.warn(`[import-svc] published item ${item.id} → news ${news.id} (${news.slug})`)
