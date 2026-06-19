@@ -9,6 +9,7 @@
     "preview": "nuxt preview",
     "worker:view-count": "jiti workers/view-count.ts",
     "worker:import": "jiti workers/import.ts",
+    "worker:embedding": "jiti workers/embedding.ts",
     "worker:all": "jiti workers/all.ts",
     "test": "vitest run",
     "postinstall": "nuxt prepare",

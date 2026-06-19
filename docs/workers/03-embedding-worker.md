@@ -159,7 +159,7 @@ supabase/migrations/
 # LMSTUDIO_EMBEDDING_MODEL=text-embedding-nomic-embed-text-v1.5
 
 # Chạy riêng embedding worker
-npx jiti workers/embedding.ts   # nếu có file riêng
+npm run worker:embedding
 
 # Hoặc chạy cả 3 worker cùng lúc
 npm run worker:all
