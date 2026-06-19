@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ApiSuccess } from '~/types/api'
-import type { NewsDto } from '~/types/news'
 import { sanitizeHtml } from '~/utils/sanitize/html'
 import { formatCompactViewCount, estimateReadTime } from '~/utils/format/news'
 import dayjs from 'dayjs'
@@ -13,50 +11,32 @@ const slug = computed(() => route.params.slug as string)
 const { article, status, recordView } = useNewsDetail(slug)
 const lastRecordedId = ref<string | null>(null)
 
+// Anonymous session for personalization
+const { sessionId } = useAnonymousSession()
+
 watch(
   () => article.value?.id,
   (id) => {
     if (!import.meta.client || !id || lastRecordedId.value === id) return
     lastRecordedId.value = id
     void recordView(id)
+
+    // Record view in reading history for personalization
+    void $fetch(`/api/news/${id}/history`, {
+      method: 'POST',
+      body: { sessionId: sessionId.value },
+    }).catch(() => {
+      // Non-critical — ignore errors silently
+    })
   },
   { immediate: true },
 )
 
-const relatedCategorySlug = computed(() => article.value?.category?.slug ?? null)
-const relatedAll = ref<NewsDto[]>([])
-const relatedRequestId = ref(0)
+const articleId = computed(() => article.value?.id ?? '')
 
-watch(
-  relatedCategorySlug,
-  async (slugValue) => {
-    if (import.meta.server) return
+const { data: similarArticles, pending: similarPending } = useSimilar(articleId)
+const { data: relatedArticles, pending: relatedPending } = useRelated(articleId)
 
-    if (!slugValue) {
-      relatedAll.value = []
-      return
-    }
-
-    const requestId = ++relatedRequestId.value
-
-    try {
-      const response = await $fetch<ApiSuccess<NewsDto[]>>('/api/news', {
-        query: { category: slugValue, limit: 4 },
-      })
-
-      if (requestId !== relatedRequestId.value) return
-      relatedAll.value = response.data ?? []
-    } catch {
-      if (requestId !== relatedRequestId.value) return
-      relatedAll.value = []
-    }
-  },
-  { immediate: true },
-)
-
-const related = computed(() =>
-  relatedAll.value.filter(n => n.slug !== slug.value).slice(0, 3),
-)
 const navigation = computed(() => article.value?.navigation ?? { newer: null, older: null })
 
 function formatLongDate(iso: string | null) {
@@ -252,49 +232,9 @@ useHead({
         </div>
       </div>
 
-      <!-- Related Articles -->
-      <div v-if="related.length > 0" class="bg-slate-50 px-4 pb-24 pt-20 sm:px-6 lg:px-12">
-        <!-- Section Header -->
-        <div class="mb-8">
-          <p class="text-[13px] font-medium uppercase tracking-[1.6px] text-slate-400">
-            BÀI LIÊN QUAN
-          </p>
-          <p class="mt-2 font-vietnam font-bold text-[28px] leading-[1.2] tracking-[-0.48px] text-navy-900 sm:text-[32px]">
-            Đọc thêm về {{ article.category?.name?.toLowerCase() ?? 'chủ đề này' }}
-          </p>
-        </div>
-
-        <!-- Cards -->
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <NuxtLink
-            v-for="item in related"
-            :key="item.id"
-            :to="`/news/${item.slug}`"
-            class="group flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-shadow hover:shadow-md"
-          >
-            <div class="h-[200px] shrink-0 overflow-hidden bg-slate-100">
-              <img
-                v-if="item.thumbnailUrl"
-                :src="item.thumbnailUrl"
-                :alt="item.title"
-                class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
-              >
-            </div>
-            <div class="flex flex-col gap-3 px-6 pb-6 pt-5">
-              <p class="text-[12px] font-medium uppercase tracking-[1.4px] text-sage-600">
-                {{ item.category?.name ?? 'Tin tức' }}
-              </p>
-              <p class="font-vietnam font-semibold text-[20px] leading-[1.3] tracking-[-0.2px] text-navy-900 transition-colors group-hover:text-sage-600">
-                {{ item.title }}
-              </p>
-              <p class="text-[13px] text-slate-400">
-                Đọc {{ estimateReadTime(item.content) }} phút
-              </p>
-            </div>
-          </NuxtLink>
-        </div>
-      </div>
+      <!-- Similar + Related Recommendation Sections -->
+      <SimilarArticles :data="similarArticles" :pending="similarPending" />
+      <RelatedArticles :data="relatedArticles" :pending="relatedPending" />
     </template>
   </div>
 </template>

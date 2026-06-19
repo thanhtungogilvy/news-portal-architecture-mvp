@@ -486,16 +486,16 @@ final_score =
 ## Tasks
 
 ```text
-[ ] Track user article history when detail page is visited
-[ ] Add user_article_history table
-[ ] Add similar article endpoint
-[ ] Add general related article endpoint
-[ ] Add personalized recommendation endpoint
-[ ] Add re-ranking logic
-[ ] Add UI sections:
+[x] Track user article history when detail page is visited
+[x] Add user_article_history table
+[x] Add similar article endpoint
+[x] Add general related article endpoint
+[x] Add personalized recommendation endpoint
+[x] Add re-ranking logic (sim*0.7 + recency*0.2 + views*0.1 with min-max normalization)
+[x] Add UI sections:
     - Similar Articles
     - Related Articles
-    - Articles You May Like
+    - Articles You May Like (personalized on home page)
 ```
 
 ## Suggested Files
@@ -591,15 +591,16 @@ Always include 3 follow-up questions.
 ## Tasks
 
 ```text
-[ ] Add RAG retrieval service
-[ ] Add context builder
-[ ] Add LM Studio chat completion provider
-[ ] Add POST /api/chat
-[ ] Ensure chatbot answers only from retrieved articles
-[ ] Return article cards
-[ ] Always return 3 follow-up questions
-[ ] Add chatbot UI
-[ ] Add empty/error/loading states
+[x] Add RAG retrieval service (rag-chat.service.ts)
+[x] Add context builder (rag-context.service.ts — strips HTML, 800 char content cap per article)
+[x] Add LM Studio chat completion provider (lmstudio.provider.ts — chat())
+[x] Add POST /api/chat (validates message, 503 on AI_UNAVAILABLE)
+[x] Ensure chatbot answers only from retrieved articles (system prompt grounding)
+[x] Return article cards
+[x] Always return 3 follow-up questions (parsed from last-line JSON; fallback if parse fails)
+[x] Add chatbot UI (ChatPanel, ChatMessage, ChatArticleCard, FollowUpQuestions)
+[x] Add empty/error/loading states (typing dots, error banner, empty state with quick prompts)
+[x] Add chat link to LayoutHeader (desktop icon + mobile nav entry)
 ```
 
 ## Suggested Files

@@ -387,6 +387,35 @@ export type Database = {
           },
         ]
       }
+      user_article_history: {
+        Row: {
+          id: string
+          anonymous_session_id: string
+          article_id: string
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          anonymous_session_id: string
+          article_id: string
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          anonymous_session_id?: string
+          article_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_article_history_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

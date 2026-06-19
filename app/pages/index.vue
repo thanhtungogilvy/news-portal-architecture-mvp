@@ -59,6 +59,10 @@ const categoryColumns = computed(() => categoryColumnsData.value ?? [])
 const hasFeaturedError = computed(() => featuredStatus.value === 'error')
 const hasMostViewedError = computed(() => mostViewedStatus.value === 'error')
 const hasCategoryColumnsError = computed(() => categoryColumnsStatus.value === 'error')
+
+// Personalized recommendations
+const { sessionId } = useAnonymousSession()
+const { data: forYouArticles, pending: forYouPending } = useForYou(sessionId)
 </script>
 
 <template>
@@ -545,5 +549,8 @@ const hasCategoryColumnsError = computed(() => categoryColumnsStatus.value === '
         </div>
       </div>
     </section>
+
+    <!-- ─── Personalized Recommendations ───────────────── -->
+    <PersonalizedArticles :data="forYouArticles" :pending="forYouPending" />
   </div>
 </template>
