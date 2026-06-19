@@ -28,7 +28,7 @@ export function buildEmbeddingText(article: ArticleEmbeddingFields): string {
     lines.push(`Summary: ${article.summary.trim()}`)
   }
 
-  const description = stripHtml(article.content).slice(0, 500).trim()
+  const description = stripHtml(article.content).slice(0, 2000).trim()
   if (description) {
     lines.push(`Description: ${description}`)
   }

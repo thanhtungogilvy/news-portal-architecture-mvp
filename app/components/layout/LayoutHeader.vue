@@ -10,7 +10,7 @@ const mobileMenuOpen = ref(false)
 function submitSearch() {
   const q = searchQuery.value.trim()
   if (!q) return
-  router.push({ path: '/news', query: { q } })
+  router.push({ path: '/search', query: { q } })
   searchQuery.value = ''
   mobileMenuOpen.value = false
 }
@@ -98,7 +98,7 @@ onUnmounted(() => { scrollLocked.value = false })
 
         <!-- Mobile search icon -->
         <NuxtLink
-          to="/news"
+          to="/search"
           class="flex size-9 items-center justify-center rounded-lg text-navy-900 hover:bg-slate-100 xl:hidden"
           aria-label="Tìm kiếm"
         >

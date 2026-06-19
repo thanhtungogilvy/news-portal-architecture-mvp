@@ -11,6 +11,8 @@
     "worker:import": "jiti workers/import.ts",
     "worker:embedding": "jiti workers/embedding.ts",
     "worker:all": "jiti workers/all.ts",
+    "embeddings:check": "jiti scripts/check-embeddings.ts",
+    "embeddings:watch": "jiti scripts/check-embeddings.ts --watch",
     "test": "vitest run",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",

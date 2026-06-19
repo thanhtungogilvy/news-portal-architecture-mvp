@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | 'CRAWL_FETCH_ERROR'
   | 'CRAWL_UPSTREAM_ERROR'
   | 'CRAWL_NETWORK_ERROR'
+  | 'AI_UNAVAILABLE'
 
 export interface ApiSuccess<T> {
   data: T

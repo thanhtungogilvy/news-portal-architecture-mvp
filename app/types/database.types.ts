@@ -431,8 +431,9 @@ export type Database = {
       match_article_embeddings: {
         Args: {
           query_embedding: string
-          match_count?: number
+          match_count?: number | null
           filter?: Json
+          min_similarity?: number
         }
         Returns: {
           article_id: string
